@@ -1,0 +1,145 @@
+# GraphQL Schema for APS Backend
+
+# ============================================
+# ENUMS
+# ============================================
+
+enum UserRole {
+  GUEST
+  TENANT
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  EXPIRED
+  CANCELLED
+}
+
+# ============================================
+# TYPES
+# ============================================
+
+type User {
+  id: Int!
+  fullName: String!
+  phoneNumber: String!
+  role: UserRole!
+  isVerifiedTenant: Boolean!
+  unitNumber: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Facility {
+  id: Int!
+  name: String!
+  description: String
+  pricePerHour: Int!
+  openTime: String!
+  closeTime: String!
+  isActive: Boolean!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Booking {
+  id: Int!
+  userId: Int!
+  facilityId: Int!
+  bookingDate: String!
+  startTime: String!
+  endTime: String!
+  status: BookingStatus!
+  totalPrice: Int!
+  createdAt: String!
+  updatedAt: String!
+  
+  # Nested relationships (resolved via DataLoader)
+  user: User!
+  facility: Facility!
+}
+
+type AvailableSlot {
+  startTime: String!
+  endTime: String!
+  isAvailable: Boolean!
+}
+
+type SlotAvailability {
+  facilityId: Int!
+  date: String!
+  slots: [AvailableSlot!]!
+}
+
+type UserDashboard {
+  user: User!
+  bookings: [Booking!]!
+  bookingCountToday: Int!
+  upcomingBookings: Int!
+  totalSpent: Int!
+}
+
+type AuthResponse {
+  token: String!
+  user: User!
+}
+
+# ============================================
+# INPUT TYPES
+# ============================================
+
+input LoginInput {
+  phoneNumber: String!
+}
+
+input CreateBookingInput {
+  userId: Int!
+  facilityId: Int!
+  bookingDate: String!
+  startTime: String!
+  endTime: String!
+}
+
+input SlotAvailabilityInput {
+  facilityId: Int!
+  date: String!
+}
+
+# ============================================
+# QUERIES
+# ============================================
+
+type Query {
+  # Authentication
+  me: User!
+  
+  # Facilities
+  facilities: [Facility!]!
+  facility(id: Int!): Facility!
+  availableSlots(input: SlotAvailabilityInput!): SlotAvailability!
+  
+  # Bookings
+  booking(id: Int!): Booking!
+  
+  # Users
+  user(id: Int!): User!
+  userBookings(userId: Int!): [Booking!]!
+  userDashboard(userId: Int!): UserDashboard!
+}
+
+# ============================================
+# MUTATIONS
+# ============================================
+
+type Mutation {
+  # Authentication
+  login(input: LoginInput!): AuthResponse!
+  
+  # Bookings
+  createBooking(input: CreateBookingInput!): Booking!
+  confirmBooking(id: Int!): Booking!
+  cancelBooking(id: Int!): Booking!
+}
