@@ -1,15 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { facilityService } from '@core/services/facility.service';
-import { validate, slotAvailabilitySchema } from '@core/validators/booking.validator';
+import { facilityService } from '../../core/services/facility.service';
+import { validate, slotAvailabilitySchema } from '../../core/validators/booking.validator';
 
 export class FacilitiesController {
-  /**
-   * GET /api/facilities
-   * Get all active facilities
-   */
   async getAllFacilities(
-    _req: Request, 
-    res: Response, 
+    _req: Request,
+    res: Response,
     next: NextFunction): Promise<void> {
     try {
       const facilities = await facilityService.getAllFacilities();
@@ -19,10 +15,6 @@ export class FacilitiesController {
     }
   }
 
-  /**
-   * GET /api/facilities/:id
-   * Get facility by ID
-   */
   async getFacilityById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
@@ -33,10 +25,6 @@ export class FacilitiesController {
     }
   }
 
-  /**
-   * GET /api/facilities/:id/slots?date=YYYY-MM-DD
-   * Get available time slots for a facility on a specific date
-   */
   async getAvailableSlots(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const facilityId = parseInt(req.params.id);
@@ -51,14 +39,13 @@ export class FacilitiesController {
         return;
       }
 
-      // Validate input
       const params = validate(slotAvailabilitySchema, {
         facilityId,
         date
       });
 
       const slots = await facilityService.getAvailableSlots(params);
-      
+
       res.status(200).json({
         facilityId,
         date: params.date,

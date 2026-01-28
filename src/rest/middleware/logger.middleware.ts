@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '@utils/logger';
+import logger from '../../utils/logger';
 
 /**
  * Request logger middleware
@@ -12,7 +12,6 @@ export function requestLogger(
 ): void {
   const start = Date.now();
 
-  // Log request
   logger.info({
     type: 'request',
     method: req.method,
@@ -21,7 +20,6 @@ export function requestLogger(
     ip: req.ip
   });
 
-  // Log response when finished
   res.on('finish', () => {
     const duration = Date.now() - start;
     

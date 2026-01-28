@@ -3,7 +3,7 @@ import {
   BookingWithDetails, 
   CreateBookingDTO, 
   BookingStatus 
-} from '@core/types';
+} from '../../core/types';
 import { 
   NotFoundError,
   BookingConflictError,
@@ -11,26 +11,21 @@ import {
   InvalidTimeSlotError,
   FacilityClosedError,
   BookingTooFarInAdvanceError
-} from '@core/errors/custom-errors';
-import { bookingsQueries } from '@db/queries/bookings.queries';
-import { facilitiesQueries } from '@db/queries/facilities.queries';
-import { usersQueries } from '@db/queries/users.queries';
+} from '../../core/errors/custom-errors';
+import { bookingsQueries } from '../../db/queries/bookings.queries';
+import { facilitiesQueries } from '../../db/queries/facilities.queries';
+import { usersQueries } from '../../db/queries/users.queries';
 import { startOfDay, differenceInDays } from 'date-fns';
 
 /**
- * BookingService
- * 
  * Core booking business logic shared by REST and GraphQL.
  * Implements all booking rules and validation.
  */
 export class BookingService {
-  // Business rule constants
-  private readonly MAX_BOOKINGS_PER_DAY = Number(process.env.MAX_BOOKINGS_PER_DAY) || 2;
-  private readonly MAX_ADVANCE_DAYS = Number(process.env.MAX_ADVANCE_DAYS) || 3;
+  private readonly MAX_BOOKINGS_PER_DAY = Number(process.env.MAX_BOOKINGS_PER_DAY);
+  private readonly MAX_ADVANCE_DAYS = Number(process.env.MAX_ADVANCE_DAYS);
 
   /**
-   * Create a new booking with full validation
-   * 
    * Validates:
    * - Time slot validity
    * - Facility operating hours
@@ -42,10 +37,8 @@ export class BookingService {
   async createBooking(data: CreateBookingDTO): Promise<Booking> {
     const { userId, facilityId, bookingDate, startTime, endTime } = data;
     
-    // 1. Validate time slot format and logic
     this.validateTimeSlot(startTime, endTime);
     
-    // 2. Check if facility exists and is active
     const facility = await facilitiesQueries.findById(facilityId);
     if (!facility) {
       throw new NotFoundError('Facility', facilityId);
@@ -54,22 +47,16 @@ export class BookingService {
       throw new InvalidTimeSlotError('This facility is currently unavailable');
     }
     
-    // 3. Validate booking date (not in the past, not too far in advance)
     this.validateBookingDate(bookingDate);
     
-    // 4. Check if booking is within facility operating hours
     this.validateOperatingHours(facility, startTime, endTime);
     
-    // 5. Check user's daily booking limit
     await this.checkDailyBookingLimit(userId, bookingDate);
     
-    // 6. Check for conflicts with existing bookings
     await this.checkBookingConflict(facilityId, bookingDate, startTime, endTime, facility.name);
     
-    // 7. Calculate total price (free for verified tenants)
     const totalPrice = await this.calculatePrice(userId, facility.pricePerHour, startTime, endTime);
     
-    // 8. Create the booking
     const booking = await bookingsQueries.create({
       userId,
       facilityId,
@@ -82,9 +69,6 @@ export class BookingService {
     return booking;
   }
 
-  /**
-   * Get booking by ID
-   */
   async getBookingById(id: number): Promise<Booking> {
     const booking = await bookingsQueries.findById(id);
     if (!booking) {
@@ -93,9 +77,6 @@ export class BookingService {
     return booking;
   }
 
-  /**
-   * Get booking with full details (user + facility)
-   */
   async getBookingWithDetails(id: number): Promise<BookingWithDetails> {
     const booking = await bookingsQueries.findByIdWithDetails(id);
     if (!booking) {
@@ -104,16 +85,10 @@ export class BookingService {
     return booking;
   }
 
-  /**
-   * Get all bookings for a user
-   */
   async getUserBookings(userId: number): Promise<BookingWithDetails[]> {
     return await bookingsQueries.findByUserId(userId);
   }
 
-  /**
-   * Confirm a booking (payment received or tenant verified)
-   */
   async confirmBooking(id: number): Promise<Booking> {
     const booking = await this.getBookingById(id);
     
@@ -124,9 +99,6 @@ export class BookingService {
     return await bookingsQueries.updateStatus(id, BookingStatus.CONFIRMED);
   }
 
-  /**
-   * Cancel a booking
-   */
   async cancelBooking(id: number): Promise<Booking> {
     const booking = await this.getBookingById(id);
     
@@ -137,9 +109,6 @@ export class BookingService {
     return await bookingsQueries.updateStatus(id, BookingStatus.CANCELLED);
   }
 
-  /**
-   * Validate time slot format and logic
-   */
   private validateTimeSlot(startTime: string, endTime: string): void {
     const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
     
@@ -157,28 +126,20 @@ export class BookingService {
     }
   }
 
-  /**
-   * Validate booking date (must be today or future, max 3 days advance)
-   */
   private validateBookingDate(bookingDate: Date): void {
     const today = startOfDay(new Date());
     const bookingDay = startOfDay(bookingDate);
     
-    // Can't book in the past
     if (bookingDay < today) {
       throw new InvalidTimeSlotError('Cannot book slots in the past');
     }
     
-    // Can't book more than 3 days in advance
     const daysInAdvance = differenceInDays(bookingDay, today);
     if (daysInAdvance > this.MAX_ADVANCE_DAYS) {
       throw new BookingTooFarInAdvanceError(this.MAX_ADVANCE_DAYS);
     }
   }
 
-  /**
-   * Validate booking is within facility operating hours
-   */
   private validateOperatingHours(
     facility: { name: string; openTime: string; closeTime: string },
     startTime: string,
@@ -202,9 +163,6 @@ export class BookingService {
     }
   }
 
-  /**
-   * Check if user has reached daily booking limit (max 4 per day)
-   */
   private async checkDailyBookingLimit(userId: number, bookingDate: Date): Promise<void> {
     const count = await bookingsQueries.countUserBookingsOnDate(userId, bookingDate);
     
@@ -213,9 +171,6 @@ export class BookingService {
     }
   }
 
-  /**
-   * Check for booking conflicts (overlapping time slots)
-   */
   private async checkBookingConflict(
     facilityId: number,
     bookingDate: Date,
@@ -237,7 +192,6 @@ export class BookingService {
   }
 
   /**
-   * Calculate booking price
    * - Verified tenants: free (0)
    * - Guests: price_per_hour * hours
    */
@@ -247,14 +201,12 @@ export class BookingService {
     startTime: string,
     endTime: string
   ): Promise<number> {
-    // Check if user is verified tenant
     const isVerifiedTenant = await usersQueries.isVerifiedTenant(userId);
     
     if (isVerifiedTenant) {
-      return 0; // Free for tenants
+      return 0; 
     }
     
-    // Calculate hours
     const toMinutes = (time: string): number => {
       const [hours, minutes] = time.split(':').map(Number);
       return hours * 60 + minutes;
@@ -267,5 +219,4 @@ export class BookingService {
   }
 }
 
-// Export singleton instance
 export const bookingService = new BookingService();

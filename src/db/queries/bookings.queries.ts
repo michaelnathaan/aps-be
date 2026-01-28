@@ -1,10 +1,7 @@
 import { query } from '../client';
-import { Booking, BookingWithDetails, BookingStatus } from '@core/types';
+import { Booking, BookingWithDetails, BookingStatus } from '../../core/types';
 
 export const bookingsQueries = {
-  /**
-   * Create a new booking
-   */
   async create(data: {
     userId: number;
     facilityId: number;
@@ -31,7 +28,7 @@ export const bookingsQueries = {
         created_at as "createdAt",
         updated_at as "updatedAt"
     `;
-    
+
     const result = await query<Booking>(sql, [
       data.userId,
       data.facilityId,
@@ -40,13 +37,10 @@ export const bookingsQueries = {
       data.endTime,
       data.totalPrice
     ]);
-    
+
     return result.rows[0];
   },
 
-  /**
-   * Find booking by ID
-   */
   async findById(id: number): Promise<Booking | null> {
     const sql = `
       SELECT 
@@ -63,14 +57,11 @@ export const bookingsQueries = {
       FROM bookings
       WHERE id = $1
     `;
-    
+
     const result = await query<Booking>(sql, [id]);
     return result.rows[0] || null;
   },
 
-  /**
-   * Find booking with full details (user + facility)
-   */
   async findByIdWithDetails(id: number): Promise<BookingWithDetails | null> {
     const sql = `
       SELECT 
@@ -115,14 +106,11 @@ export const bookingsQueries = {
       JOIN facilities f ON b.facility_id = f.id
       WHERE b.id = $1
     `;
-    
+
     const result = await query<BookingWithDetails>(sql, [id]);
     return result.rows[0] || null;
   },
 
-  /**
-   * Find bookings by user ID
-   */
   async findByUserId(userId: number): Promise<BookingWithDetails[]> {
     const sql = `
       SELECT 
@@ -166,14 +154,11 @@ export const bookingsQueries = {
       WHERE b.user_id = $1
       ORDER BY b.booking_date DESC, b.start_time DESC
     `;
-    
+
     const result = await query<BookingWithDetails>(sql, [userId]);
     return result.rows;
   },
 
-  /**
-   * Check for conflicting bookings (same facility, date, overlapping time)
-   */
   async checkConflict(
     facilityId: number,
     bookingDate: Date,
@@ -189,20 +174,17 @@ export const bookingsQueries = {
           AND (start_time, end_time) OVERLAPS ($3::time, $4::time)
       ) as "hasConflict"
     `;
-    
+
     const result = await query<{ hasConflict: boolean }>(sql, [
       facilityId,
       bookingDate,
       startTime,
       endTime
     ]);
-    
+
     return result.rows[0].hasConflict;
   },
 
-  /**
-   * Count user's bookings on a specific date (for 4-booking limit)
-   */
   async countUserBookingsOnDate(userId: number, date: Date): Promise<number> {
     const sql = `
       SELECT COUNT(*) as count
@@ -211,14 +193,11 @@ export const bookingsQueries = {
         AND booking_date = $2
         AND status IN ('pending', 'confirmed')
     `;
-    
+
     const result = await query<{ count: string }>(sql, [userId, date]);
     return parseInt(result.rows[0].count);
   },
 
-  /**
-   * Get booked time slots for a facility on a specific date
-   */
   async getBookedSlots(facilityId: number, date: Date): Promise<{ startTime: string; endTime: string }[]> {
     const sql = `
       SELECT 
@@ -230,18 +209,15 @@ export const bookingsQueries = {
         AND status IN ('pending', 'confirmed')
       ORDER BY start_time ASC
     `;
-    
+
     const result = await query<{ startTime: string; endTime: string }>(sql, [
       facilityId,
       date
     ]);
-    
+
     return result.rows;
   },
 
-  /**
-   * Update booking status
-   */
   async updateStatus(id: number, status: BookingStatus): Promise<Booking> {
     const sql = `
       UPDATE bookings
@@ -259,7 +235,7 @@ export const bookingsQueries = {
         created_at as "createdAt",
         updated_at as "updatedAt"
     `;
-    
+
     const result = await query<Booking>(sql, [status, id]);
     return result.rows[0];
   }

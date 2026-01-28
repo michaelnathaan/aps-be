@@ -3,7 +3,6 @@
     "target": "ES2022",
     "module": "commonjs",
     "lib": ["ES2022"],
-    "types": ["node"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -19,15 +18,8 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": "./src",
-    "paths": {
-      "@core/*": ["core/*"],
-      "@db/*": ["db/*"],
-      "@rest/*": ["rest/*"],
-      "@graphql/*": ["graphql/*"],
-      "@utils/*": ["utils/*"],
-      "@config/*": ["config/*"]
-    }
+    
+    "baseUrl": "."
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]

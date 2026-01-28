@@ -1,7 +1,7 @@
 import DataLoader from 'dataloader';
-import { User, Facility } from '@core/types';
-import { usersQueries } from '@db/queries/users.queries';
-import { facilitiesQueries } from '@db/queries/facilities.queries';
+import { User, Facility } from '../../core/types';
+import { usersQueries } from '../../db/queries/users.queries';
+import { facilitiesQueries } from '../../db/queries/facilities.queries';
 
 /**
  * DataLoaders for batching and caching database queries
@@ -11,7 +11,6 @@ import { facilitiesQueries } from '@db/queries/facilities.queries';
  */
 
 /**
- * User DataLoader
  * Batches multiple user lookups into a single query
  */
 export function createUserLoader(): DataLoader<number, User | null> {
@@ -23,11 +22,9 @@ export function createUserLoader(): DataLoader<number, User | null> {
       const userMap = new Map(users.map(u => [u.id, u]));
       
       // Return users in the same order as input IDs
-      // Return null for missing users
       return userIds.map(id => userMap.get(id) || null);
     },
     {
-      // Cache configuration
       cache: true,
       batchScheduleFn: (callback) => setTimeout(callback, 10)
     }
@@ -35,7 +32,6 @@ export function createUserLoader(): DataLoader<number, User | null> {
 }
 
 /**
- * Facility DataLoader
  * Batches multiple facility lookups into a single query
  */
 export function createFacilityLoader(): DataLoader<number, Facility | null> {
@@ -57,7 +53,6 @@ export function createFacilityLoader(): DataLoader<number, Facility | null> {
 }
 
 /**
- * DataLoader factory
  * Creates all dataloaders for a request
  */
 export interface DataLoaders {
