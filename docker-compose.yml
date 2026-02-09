@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  rest-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.rest
+    container_name: aps-rest-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      REST_PORT: 3001
+      GRAPHQL_PORT: 3002
+      
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DATABASE_URL: ${DATABASE_URL}
+      
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      
+      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_QUERIES: ${LOG_QUERIES}
+      
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    ports:
+      - "${REST_PORT}:3001"
+    # Resource limits (same for both APIs - fair comparison)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Connect to external network (if using same network as DB)
+    networks:
+      - aps-network
+
+  graphql-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.graph
+    container_name: aps-graphql-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      REST_PORT: 3001
+      GRAPHQL_PORT: 3002
+      
+      # Database connection (connects to external postgres)
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DATABASE_URL: ${DATABASE_URL}
+      
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_QUERIES: ${LOG_QUERIES}
+      
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    ports:
+      - "${GRAPHQL_PORT}:3002"
+    # Same resource limits as REST (critical for fair comparison)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/.well-known/apollo/server-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - aps-network
+
+networks:
+  aps-network:
+    external: true
+    name: aps-db_aps-network
