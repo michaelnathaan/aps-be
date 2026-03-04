@@ -16,6 +16,14 @@ router.post('/', authenticate, (req, res, next) =>
  * GET /api/bookings/:id
  * Get booking by ID
  */
+router.get('/all', authenticate, (req, res, next) => 
+  bookingsController.getAllBookings(req, res, next)
+);
+
+/**
+ * GET /api/bookings/:id
+ * Get booking by ID
+ */
 router.get('/:id', authenticate, (req, res, next) => 
   bookingsController.getBookingById(req, res, next)
 );

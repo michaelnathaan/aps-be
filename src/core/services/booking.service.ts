@@ -34,6 +34,10 @@ export class BookingService {
    * - Booking conflicts
    * - Calculates price (free for verified tenants)
    */
+
+  async getAllBookings(): Promise<Booking[]> {
+    return await bookingsQueries.findAll();
+  }
   async createBooking(data: CreateBookingDTO): Promise<Booking> {
     const { userId, facilityId, bookingDate, startTime, endTime } = data;
     

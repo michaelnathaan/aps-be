@@ -2,6 +2,24 @@ import { query } from '../client';
 import { Booking, BookingWithDetails, BookingStatus } from '../../core/types';
 
 export const bookingsQueries = {
+  async findAll(): Promise<Booking[]> {
+    const sql = `
+      SELECT 
+        id,
+        user_id as "userId",
+        facility_id as "facilityId",
+        booking_date as "bookingDate",
+        start_time as "startTime",
+        end_time as "endTime",
+        status,
+        total_price as "totalPrice",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM bookings
+    `;
+    const result = await query<Booking>(sql);
+    return result.rows;
+  },
   async create(data: {
     userId: number;
     facilityId: number;
