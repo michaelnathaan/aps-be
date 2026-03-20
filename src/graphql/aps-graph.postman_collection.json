@@ -1,0 +1,217 @@
+{
+    "info": {
+        "name": "APS GraphQL API",
+        "_postman_id": "aps-graphql-collection",
+        "description": "GraphQL collection for APS API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "graphqlUrl",
+            "value": "http://localhost:3002/graphql"
+        },
+        {
+            "key": "token",
+            "value": ""
+        }
+    ],
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "mutation Login($input: LoginInput!) { login(input: $input) { token user { id fullName role } } }",
+                                "variables": "{ \"input\": { \"phoneNumber\": \"+6281234567892\" } }"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Queries",
+            "item": [
+                {
+                    "name": "Me",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "query GetMe { me { id fullName phoneNumber role isVerifiedTenant unitNumber } }",
+                                "variables": "{}"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                },
+                {
+                    "name": "Facilities",
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "query GetFacilities { facilities { id name description pricePerHour openTime closeTime isActive } }",
+                                "variables": "{}"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                },
+                {
+                    "name": "Facility By ID",
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "query GetFacility($id: Int!) { facility(id: $id) { id name description pricePerHour openTime closeTime isActive } }",
+                                "variables": "{ \"id\": 1 }"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                },
+                {
+                    "name": "Available Slots",
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "query GetAvailableSlots($input: SlotAvailabilityInput!) { availableSlots(input: $input) { facilityId date slots { startTime endTime isAvailable } } }",
+                                "variables": "{ \"input\": { \"facilityId\": 1, \"date\": \"2026-01-22\" } }"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                },
+                {
+                    "name": "Bookings",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "query GetBookings { bookings { id bookingDate startTime endTime status totalPrice user { id fullName } facility { id name } } }",
+                                "variables": "{}"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Mutations",
+            "item": [
+                {
+                    "name": "Create Facility",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "mutation CreateFacility($input: CreateFacilityInput!) { createFacility(input: $input) { id name pricePerHour isActive } }",
+                                "variables": "{ \"input\": { \"name\": \"Swimming Pool\", \"description\": \"Olympic-size indoor pool\", \"pricePerHour\": 75000, \"openTime\": \"06:00:00\", \"closeTime\": \"21:00:00\", \"isActive\": true } }"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                },
+                {
+                    "name": "Create Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "mutation CreateBooking($input: CreateBookingInput!) { createBooking(input: $input) { id status totalPrice facility { name } } }",
+                                "variables": "{ \"input\": { \"userId\": 3, \"facilityId\": 1, \"bookingDate\": \"2026-03-20\", \"startTime\": \"10:00:00\", \"endTime\": \"11:00:00\" } }"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                },
+                {
+                    "name": "Confirm Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "mutation ConfirmBooking($id: Int!) { confirmBooking(id: $id) { id status } }",
+                                "variables": "{ \"id\": 1 }"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                },
+                {
+                    "name": "Delete Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "graphql",
+                            "graphql": {
+                                "query": "mutation DeleteBooking($id: Int!) { deleteBooking(id: $id) }",
+                                "variables": "{ \"id\": 301 }"
+                            }
+                        },
+                        "url": "{{graphqlUrl}}"
+                    }
+                }
+            ]
+        }
+    ]
+}

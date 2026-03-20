@@ -256,5 +256,9 @@ export const bookingsQueries = {
 
     const result = await query<Booking>(sql, [status, id]);
     return result.rows[0];
-  }
+  },
+  async delete(id: number): Promise<boolean> {
+    const result = await query(`DELETE FROM bookings WHERE id = $1`, [id]);
+    return (result.rowCount ?? 0) > 0;
+  },
 };

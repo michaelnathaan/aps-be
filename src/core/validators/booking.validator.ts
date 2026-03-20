@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ValidationError } from '../../core/errors/custom-errors';
+import { BookingStatus, UserRole } from '../types';
 
 /**
  * Validation schemas using Zod
@@ -57,3 +58,41 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
     throw error;
   }
 }
+
+export const createFacilitySchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).nullable().optional(),
+  pricePerHour: z.number().int().nonnegative(),
+  openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Use HH:MM or HH:MM:SS'),
+  closeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Use HH:MM or HH:MM:SS'),
+  isActive: z.boolean().optional().default(true),
+});
+
+export const updateFacilitySchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).nullable().optional(),
+  pricePerHour: z.number().int().nonnegative().optional(),
+  openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).optional(),
+  closeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const createUserSchema = z.object({
+  fullName: z.string().min(1).max(100),
+  phoneNumber: z.string().min(7).max(20),
+  role: z.nativeEnum(UserRole).optional().default(UserRole.GUEST),
+  isVerifiedTenant: z.boolean().optional().default(false),
+  unitNumber: z.string().max(20).nullable().optional(),
+});
+
+export const updateUserSchema = z.object({
+  fullName: z.string().min(1).max(100).optional(),
+  phoneNumber: z.string().min(7).max(20).optional(),
+  role: z.nativeEnum(UserRole).optional(),
+  isVerifiedTenant: z.boolean().optional(),
+  unitNumber: z.string().max(20).nullable().optional(),
+});
+
+export const updateBookingSchema = z.object({
+  status: z.nativeEnum(BookingStatus),
+});

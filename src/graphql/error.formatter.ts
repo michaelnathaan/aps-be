@@ -1,19 +1,18 @@
+// error.formatter.ts
 import { GraphQLError, GraphQLFormattedError } from 'graphql';
 import { AppError, ValidationError } from '../core/errors/custom-errors';
 import logger from '../utils/logger';
 
-/**
- * Format GraphQL errors
- * Converts custom errors to GraphQL error format
- */
 export function formatError(formattedError: GraphQLFormattedError, error: unknown): GraphQLFormattedError {
+  const originalError = error instanceof GraphQLError ? error.originalError : error;
+
+  // Always log the REAL error with full detail, never the formatted one
   logger.error({
-    message: formattedError.message,
+    message: originalError instanceof Error ? originalError.message : formattedError.message,
+    stack: originalError instanceof Error ? originalError.stack : undefined,
     path: formattedError.path,
     extensions: formattedError.extensions
   });
-
-  const originalError = error instanceof GraphQLError ? error.originalError : error;
 
   if (originalError instanceof AppError) {
     return {
@@ -21,8 +20,8 @@ export function formatError(formattedError: GraphQLFormattedError, error: unknow
       extensions: {
         code: originalError.code,
         statusCode: originalError.statusCode,
-        ...(originalError instanceof ValidationError && originalError.fields 
-          ? { fields: originalError.fields } 
+        ...(originalError instanceof ValidationError && originalError.fields
+          ? { fields: originalError.fields }
           : {})
       }
     };
@@ -32,12 +31,16 @@ export function formatError(formattedError: GraphQLFormattedError, error: unknow
     return formattedError;
   }
 
+  const isDev = process.env.NODE_ENV === 'development';
   return {
-    message: process.env.NODE_ENV === 'production' 
-      ? 'An unexpected error occurred' 
-      : formattedError.message,
+    message: isDev
+      ? (originalError instanceof Error ? originalError.message : formattedError.message)
+      : 'An unexpected error occurred',
     extensions: {
-      code: formattedError.extensions?.code || 'INTERNAL_SERVER_ERROR'
+      code: formattedError.extensions?.code || 'INTERNAL_SERVER_ERROR',
+      ...(isDev && originalError instanceof Error
+        ? { stack: originalError.stack }
+        : {})
     }
   };
 }

@@ -1,0 +1,276 @@
+{
+    "info": {
+        "name": "APS REST API",
+        "_postman_id": "aps-api-collection",
+        "description": "Collection for APS REST API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3001/api"
+        },
+        {
+            "key": "token",
+            "value": ""
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"phoneNumber\": \"+6281234567892\"\n}"
+                        },
+                        "url": "{{baseUrl}}/auth/login"
+                    }
+                },
+                {
+                    "name": "Me",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/auth/me"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Facilities",
+            "item": [
+                {
+                    "name": "Get All Facilities",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "url": "{{baseUrl}}/facilities"
+                    }
+                },
+                {
+                    "name": "Get Facility By ID",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "url": "{{baseUrl}}/facilities/1"
+                    }
+                },
+                {
+                    "name": "Get Slots",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "url": "{{baseUrl}}/facilities/1/slots?date=2026-01-22"
+                    }
+                },
+                {
+                    "name": "Create Facility",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Swimming Pool\",\n  \"description\": \"Olympic-size indoor pool\",\n  \"pricePerHour\": 75000,\n  \"openTime\": \"06:00:00\",\n  \"closeTime\": \"21:00:00\",\n  \"isActive\": true\n}"
+                        },
+                        "url": "{{baseUrl}}/facilities"
+                    }
+                },
+                {
+                    "name": "Update Facility",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"pricePerHour\": 80000,\n  \"isActive\": false\n}"
+                        },
+                        "url": "{{baseUrl}}/facilities/1"
+                    }
+                },
+                {
+                    "name": "Delete Facility",
+                    "request": {
+                        "method": "DELETE",
+                        "url": "{{baseUrl}}/facilities/1"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Bookings",
+            "item": [
+                {
+                    "name": "Get All Bookings",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/bookings"
+                    }
+                },
+                {
+                    "name": "Create Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"userId\": 3,\n  \"facilityId\": 1,\n  \"bookingDate\": \"2026-01-22\",\n  \"startTime\": \"14:00:00\",\n  \"endTime\": \"15:00:00\"\n}"
+                        },
+                        "url": "{{baseUrl}}/bookings"
+                    }
+                },
+                {
+                    "name": "Get Booking",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/bookings/1"
+                    }
+                },
+                {
+                    "name": "Get Booking Details",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/bookings/1/details"
+                    }
+                },
+                {
+                    "name": "Confirm Booking",
+                    "request": {
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/bookings/1/confirm"
+                    }
+                },
+                {
+                    "name": "Cancel Booking",
+                    "request": {
+                        "method": "DELETE",
+                        "url": "{{baseUrl}}/bookings/1"
+                    }
+                },
+                {
+                    "name": "Hard Delete Booking",
+                    "request": {
+                        "method": "DELETE",
+                        "url": "{{baseUrl}}/bookings/1/hard"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Users",
+            "item": [
+                {
+                    "name": "Get All Users",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/users"
+                    }
+                },
+                {
+                    "name": "Get User",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/users/1"
+                    }
+                },
+                {
+                    "name": "User Bookings",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/users/1/bookings"
+                    }
+                },
+                {
+                    "name": "User Dashboard",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/users/1/dashboard"
+                    }
+                },
+                {
+                    "name": "Create User",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"fullName\": \"Siti Rahayu\",\n  \"phoneNumber\": \"+6289876543210\",\n  \"role\": \"tenant\",\n  \"isVerifiedTenant\": true,\n  \"unitNumber\": \"0802\"\n}"
+                        },
+                        "url": "{{baseUrl}}/users"
+                    }
+                },
+                {
+                    "name": "Update User",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"isVerifiedTenant\": true,\n  \"unitNumber\": \"1203\"\n}"
+                        },
+                        "url": "{{baseUrl}}/users/1"
+                    }
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "url": "{{baseUrl}}/users/1"
+                    }
+                }
+            ]
+        }
+    ]
+}

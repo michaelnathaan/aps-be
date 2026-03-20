@@ -1,30 +1,39 @@
+// facilities.router.ts
 import { Router } from 'express';
 import { facilitiesController } from '../controllers/facilities.controller';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+import { UserRole } from '../../core/types';
 
 const router = Router();
 
-/**
- * GET /api/facilities
- * Get all active facilities
- */
-router.get('/', (req, res, next) => 
+// GET /api/facilities — public, active facilities only
+router.get('/', (req, res, next) =>
   facilitiesController.getAllFacilities(req, res, next)
 );
 
-/**
- * GET /api/facilities/:id
- * Get facility by ID
- */
-router.get('/:id', (req, res, next) => 
+// POST /api/facilities — admin only
+router.post('/', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), (req, res, next) =>
+  facilitiesController.createFacility(req, res, next)
+);
+
+// GET /api/facilities/:id/slots — must be before /:id
+router.get('/:id/slots', (req, res, next) =>
+  facilitiesController.getAvailableSlots(req, res, next)
+);
+
+// GET /api/facilities/:id
+router.get('/:id', (req, res, next) =>
   facilitiesController.getFacilityById(req, res, next)
 );
 
-/**
- * GET /api/facilities/:id/slots?date=YYYY-MM-DD
- * Get available time slots for a facility
- */
-router.get('/:id/slots', (req, res, next) => 
-  facilitiesController.getAvailableSlots(req, res, next)
+// PATCH /api/facilities/:id — admin only
+router.patch('/:id', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), (req, res, next) =>
+  facilitiesController.updateFacility(req, res, next)
+);
+
+// DELETE /api/facilities/:id — admin only
+router.delete('/:id', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), (req, res, next) =>
+  facilitiesController.deleteFacility(req, res, next)
 );
 
 export default router;

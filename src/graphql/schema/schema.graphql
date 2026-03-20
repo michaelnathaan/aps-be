@@ -5,17 +5,17 @@
 # ============================================
 
 enum UserRole {
-  GUEST
-  TENANT
-  ADMIN
-  SUPER_ADMIN
+  guest
+  tenant
+  admin
+  super_admin
 }
 
 enum BookingStatus {
-  PENDING
-  CONFIRMED
-  EXPIRED
-  CANCELLED
+  pending
+  confirmed
+  expired
+  cancelled
 }
 
 # ============================================
@@ -108,26 +108,58 @@ input SlotAvailabilityInput {
   date: String!
 }
 
+input CreateFacilityInput {
+  name: String!
+  description: String
+  pricePerHour: Int!
+  openTime: String!
+  closeTime: String!
+  isActive: Boolean
+}
+
+input UpdateFacilityInput {
+  name: String
+  description: String
+  pricePerHour: Int
+  openTime: String
+  closeTime: String
+  isActive: Boolean
+}
+
+input CreateUserInput {
+  fullName: String!
+  phoneNumber: String!
+  role: UserRole
+  isVerifiedTenant: Boolean
+  unitNumber: String
+}
+
+input UpdateUserInput {
+  fullName: String
+  phoneNumber: String
+  role: UserRole
+  isVerifiedTenant: Boolean
+  unitNumber: String
+}
+
 # ============================================
 # QUERIES
 # ============================================
 
 type Query {
-  # Authentication
   me: User!
-  
-  # Facilities
+
   facilities: [Facility!]!
   facility(id: Int!): Facility!
   availableSlots(input: SlotAvailabilityInput!): SlotAvailability!
-  
-  # Bookings
+
+  bookings: [Booking!]!           # was missing
   booking(id: Int!): Booking!
-  
-  # Users
-  user(id: Int!): User!
   userBookings(userId: Int!): [Booking!]!
   userDashboard(userId: Int!): UserDashboard!
+
+  users: [User!]!                 # was missing
+  user(id: Int!): User!
 }
 
 # ============================================
@@ -135,11 +167,18 @@ type Query {
 # ============================================
 
 type Mutation {
-  # Authentication
   login(input: LoginInput!): AuthResponse!
-  
-  # Bookings
+
+  createFacility(input: CreateFacilityInput!): Facility!
+  updateFacility(id: Int!, input: UpdateFacilityInput!): Facility!
+  deleteFacility(id: Int!): Boolean!
+
+  createUser(input: CreateUserInput!): User!
+  updateUser(id: Int!, input: UpdateUserInput!): User!
+  deleteUser(id: Int!): Boolean!
+
   createBooking(input: CreateBookingInput!): Booking!
   confirmBooking(id: Int!): Booking!
   cancelBooking(id: Int!): Booking!
+  deleteBooking(id: Int!): Boolean!
 }
