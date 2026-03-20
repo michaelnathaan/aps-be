@@ -1,11 +1,10 @@
-# REST API Documentation
+# Updated REST API Documentation
 
 Base URL: `http://localhost:3001/api`
 
 ## Authentication
 
 All protected endpoints require a JWT token in the Authorization header:
-
 ```
 Authorization: Bearer <token>
 ```
@@ -14,18 +13,15 @@ Authorization: Bearer <token>
 
 ## Endpoints
 
-### **Authentication**
+### Authentication
 
 #### `POST /auth/login`
 Authenticate user and get JWT token.
 
 **Request Body:**
 ```json
-{
-  "phoneNumber": "+6281234567892"
-}
+{ "phoneNumber": "+6281234567892" }
 ```
-
 **Response:** `200 OK`
 ```json
 {
@@ -43,34 +39,17 @@ Authenticate user and get JWT token.
 }
 ```
 
----
-
 #### `GET /auth/me`
 Get current authenticated user.
-
 **Headers:** `Authorization: Bearer <token>`
-
-**Response:** `200 OK`
-```json
-{
-  "id": 3,
-  "fullName": "Budi Santoso",
-  "phoneNumber": "+6281234567892",
-  "role": "tenant",
-  "isVerifiedTenant": true,
-  "unitNumber": "1703",
-  "createdAt": "2026-01-21T...",
-  "updatedAt": "2026-01-21T..."
-}
-```
+**Response:** `200 OK` — same user object as above.
 
 ---
 
-### **Facilities**
+### Facilities
 
 #### `GET /facilities`
 Get all active facilities.
-
 **Response:** `200 OK`
 ```json
 [
@@ -88,79 +67,92 @@ Get all active facilities.
 ]
 ```
 
----
-
 #### `GET /facilities/:id`
 Get facility by ID.
-
-**Response:** `200 OK`
-```json
-{
-  "id": 1,
-  "name": "Tennis Court",
-  "description": "Outdoor tennis court...",
-  "pricePerHour": 50000,
-  "openTime": "06:00:00",
-  "closeTime": "22:00:00",
-  "isActive": true,
-  "createdAt": "2026-01-21T...",
-  "updatedAt": "2026-01-21T..."
-}
-```
-
+**Response:** `200 OK` — single facility object.
 **Error:** `404 Not Found`
 ```json
-{
-  "error": "NotFoundError",
-  "message": "Facility with id 999 not found",
-  "code": "NOT_FOUND"
-}
+{ "error": "NotFoundError", "message": "Facility with id 999 not found", "code": "NOT_FOUND" }
 ```
-
----
 
 #### `GET /facilities/:id/slots?date=YYYY-MM-DD`
 Get available time slots for a facility on a specific date.
-
-**Query Parameters:**
-- `date` (required): Date in YYYY-MM-DD format
-
-**Example:** `GET /facilities/1/slots?date=2026-01-22`
-
+**Query Parameters:** `date` (required) — format `YYYY-MM-DD`
 **Response:** `200 OK`
 ```json
 {
   "facilityId": 1,
   "date": "2026-01-22T00:00:00.000Z",
   "slots": [
-    {
-      "startTime": "06:00:00",
-      "endTime": "07:00:00",
-      "isAvailable": false
-    },
-    {
-      "startTime": "07:00:00",
-      "endTime": "08:00:00",
-      "isAvailable": true
-    },
-    {
-      "startTime": "08:00:00",
-      "endTime": "09:00:00",
-      "isAvailable": true
-    }
+    { "startTime": "06:00:00", "endTime": "07:00:00", "isAvailable": false },
+    { "startTime": "07:00:00", "endTime": "08:00:00", "isAvailable": true }
   ]
 }
 ```
 
+#### `POST /facilities` 🆕
+Create a new facility. **Admin only.**
+**Headers:** `Authorization: Bearer <token>`
+**Request Body:**
+```json
+{
+  "name": "Swimming Pool",
+  "description": "Olympic-size indoor pool",
+  "pricePerHour": 75000,
+  "openTime": "06:00:00",
+  "closeTime": "21:00:00",
+  "isActive": true
+}
+```
+**Response:** `201 Created` — facility object.
+
+#### `PATCH /facilities/:id` 🆕
+Update an existing facility. **Admin only.** All fields are optional — only send what you want to change.
+**Headers:** `Authorization: Bearer <token>`
+**Request Body:**
+```json
+{
+  "pricePerHour": 80000,
+  "isActive": false
+}
+```
+**Response:** `200 OK` — updated facility object.
+**Error:** `404 Not Found` if facility does not exist.
+
+#### `DELETE /facilities/:id` 🆕
+Permanently delete a facility. **Admin only.**
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `204 No Content`
+**Error:** `404 Not Found` if facility does not exist.
+
 ---
 
-### **Bookings**
+### Bookings
+
+#### `GET /bookings` 🆕
+Get all bookings in the system. **Admin only.**
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 301,
+    "userId": 3,
+    "facilityId": 1,
+    "bookingDate": "2026-01-22T00:00:00.000Z",
+    "startTime": "14:00:00",
+    "endTime": "15:00:00",
+    "status": "pending",
+    "totalPrice": 0,
+    "createdAt": "2026-01-21T...",
+    "updatedAt": "2026-01-21T..."
+  }
+]
+```
 
 #### `POST /bookings`
 Create a new booking.
-
 **Headers:** `Authorization: Bearer <token>`
-
 **Request Body:**
 ```json
 {
@@ -171,7 +163,6 @@ Create a new booking.
   "endTime": "15:00:00"
 }
 ```
-
 **Response:** `201 Created`
 ```json
 {
@@ -187,213 +178,47 @@ Create a new booking.
   "updatedAt": "2026-01-21T..."
 }
 ```
-
-**Errors:**
-
-**Conflict:** `409 Conflict`
-```json
-{
-  "error": "BookingConflictError",
-  "message": "Facility \"Tennis Court\" is already booked on 2026-01-22 at 14:00:00-15:00:00",
-  "code": "BOOKING_CONFLICT"
-}
-```
-
-**Daily Limit:** `409 Conflict`
-```json
-{
-  "error": "BookingLimitExceededError",
-  "message": "You have reached the maximum of 4 bookings per day",
-  "code": "BOOKING_LIMIT_EXCEEDED"
-}
-```
-
-**Validation Error:** `400 Bad Request`
-```json
-{
-  "error": "ValidationError",
-  "message": "Validation failed",
-  "code": "VALIDATION_ERROR",
-  "fields": {
-    "startTime": "Invalid time format. Use HH:MM or HH:MM:SS"
-  }
-}
-```
-
----
+**Errors:** `409` on conflict or daily limit exceeded. `400` on validation failure.
 
 #### `GET /bookings/:id`
 Get booking by ID.
-
 **Headers:** `Authorization: Bearer <token>`
-
-**Response:** `200 OK`
-```json
-{
-  "id": 301,
-  "userId": 3,
-  "facilityId": 1,
-  "bookingDate": "2026-01-22T00:00:00.000Z",
-  "startTime": "14:00:00",
-  "endTime": "15:00:00",
-  "status": "confirmed",
-  "totalPrice": 0,
-  "createdAt": "2026-01-21T...",
-  "updatedAt": "2026-01-21T..."
-}
-```
-
----
+**Response:** `200 OK` — single booking object (flat, no user/facility nested).
 
 #### `GET /bookings/:id/details`
-Get booking with full details (includes user and facility).
-
+Get booking with full nested user and facility data.
 **Headers:** `Authorization: Bearer <token>`
-
-**Response:** `200 OK`
-```json
-{
-  "id": 301,
-  "userId": 3,
-  "facilityId": 1,
-  "bookingDate": "2026-01-22T00:00:00.000Z",
-  "startTime": "14:00:00",
-  "endTime": "15:00:00",
-  "status": "confirmed",
-  "totalPrice": 0,
-  "createdAt": "2026-01-21T...",
-  "updatedAt": "2026-01-21T...",
-  "user": {
-    "id": 3,
-    "fullName": "Budi Santoso",
-    "phoneNumber": "+6281234567892",
-    "role": "tenant",
-    "isVerifiedTenant": true,
-    "unitNumber": "1703",
-    "createdAt": "2026-01-21T...",
-    "updatedAt": "2026-01-21T..."
-  },
-  "facility": {
-    "id": 1,
-    "name": "Tennis Court",
-    "description": "Outdoor tennis court...",
-    "pricePerHour": 50000,
-    "openTime": "06:00:00",
-    "closeTime": "22:00:00",
-    "isActive": true,
-    "createdAt": "2026-01-21T...",
-    "updatedAt": "2026-01-21T..."
-  }
-}
-```
-
----
+**Response:** `200 OK` — booking object with `user` and `facility` nested inside.
 
 #### `PUT /bookings/:id/confirm`
-Confirm a booking.
-
+Confirm a pending booking.
 **Headers:** `Authorization: Bearer <token>`
-
-**Response:** `200 OK`
-```json
-{
-  "id": 301,
-  "userId": 3,
-  "facilityId": 1,
-  "bookingDate": "2026-01-22T00:00:00.000Z",
-  "startTime": "14:00:00",
-  "endTime": "15:00:00",
-  "status": "confirmed",
-  "totalPrice": 0,
-  "createdAt": "2026-01-21T...",
-  "updatedAt": "2026-01-21T..."
-}
-```
-
----
+**Response:** `200 OK` — booking object with `status: "confirmed"`.
+**Error:** `400` if booking is not in `pending` state.
 
 #### `DELETE /bookings/:id`
-Cancel a booking.
-
+Cancel a booking (sets status to `cancelled`, does not delete the record).
 **Headers:** `Authorization: Bearer <token>`
+**Response:** `200 OK` — booking object with `status: "cancelled"`.
+**Error:** `400` if booking is already cancelled or expired.
 
-**Response:** `200 OK`
-```json
-{
-  "id": 301,
-  "userId": 3,
-  "facilityId": 1,
-  "bookingDate": "2026-01-22T00:00:00.000Z",
-  "startTime": "14:00:00",
-  "endTime": "15:00:00",
-  "status": "cancelled",
-  "totalPrice": 0,
-  "createdAt": "2026-01-21T...",
-  "updatedAt": "2026-01-21T..."
-}
-```
+#### `DELETE /bookings/:id/hard` 🆕
+Permanently delete a booking record from the database. **Admin only.**
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `204 No Content`
+**Error:** `404 Not Found` if booking does not exist.
 
 ---
 
-### **Users**
+### Users
 
-#### `GET /users/:id`
-Get user by ID.
-
+#### `GET /users` 🆕
+Get all users in the system. **Admin only.**
 **Headers:** `Authorization: Bearer <token>`
-
-**Response:** `200 OK`
-```json
-{
-  "id": 3,
-  "fullName": "Budi Santoso",
-  "phoneNumber": "+6281234567892",
-  "role": "tenant",
-  "isVerifiedTenant": true,
-  "unitNumber": "1703",
-  "createdAt": "2026-01-21T...",
-  "updatedAt": "2026-01-21T..."
-}
-```
-
----
-
-#### `GET /users/:id/bookings`
-Get all bookings for a user.
-
-**Headers:** `Authorization: Bearer <token>`
-
 **Response:** `200 OK`
 ```json
 [
   {
-    "id": 301,
-    "userId": 3,
-    "facilityId": 1,
-    "bookingDate": "2026-01-22T00:00:00.000Z",
-    "startTime": "14:00:00",
-    "endTime": "15:00:00",
-    "status": "confirmed",
-    "totalPrice": 0,
-    "createdAt": "2026-01-21T...",
-    "updatedAt": "2026-01-21T...",
-    "user": { ... },
-    "facility": { ... }
-  }
-]
-```
-
----
-
-#### `GET /users/:id/dashboard`
-Get user dashboard with bookings and statistics.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:** `200 OK`
-```json
-{
-  "user": {
     "id": 3,
     "fullName": "Budi Santoso",
     "phoneNumber": "+6281234567892",
@@ -402,7 +227,27 @@ Get user dashboard with bookings and statistics.
     "unitNumber": "1703",
     "createdAt": "2026-01-21T...",
     "updatedAt": "2026-01-21T..."
-  },
+  }
+]
+```
+
+#### `GET /users/:id`
+Get user by ID.
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `200 OK` — single user object.
+
+#### `GET /users/:id/bookings`
+Get all bookings for a user, with nested facility and user data.
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `200 OK` — array of `BookingWithDetails`.
+
+#### `GET /users/:id/dashboard`
+Get user dashboard with booking statistics.
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `200 OK`
+```json
+{
+  "user": { ... },
   "bookings": [ ... ],
   "bookingCountToday": 1,
   "upcomingBookings": 3,
@@ -410,11 +255,44 @@ Get user dashboard with bookings and statistics.
 }
 ```
 
+#### `POST /users` 🆕
+Create a new user. **Admin only.**
+**Headers:** `Authorization: Bearer <token>`
+**Request Body:**
+```json
+{
+  "fullName": "Siti Rahayu",
+  "phoneNumber": "+6289876543210",
+  "role": "tenant",
+  "isVerifiedTenant": true,
+  "unitNumber": "0802"
+}
+```
+**Response:** `201 Created` — user object.
+**Error:** `409 Conflict` if phone number is already registered.
+
+#### `PATCH /users/:id` 🆕
+Update a user. **Admin only.** All fields optional.
+**Headers:** `Authorization: Bearer <token>`
+**Request Body:**
+```json
+{
+  "isVerifiedTenant": true,
+  "unitNumber": "1203"
+}
+```
+**Response:** `200 OK` — updated user object.
+**Error:** `404 Not Found`, or `409 Conflict` if new phone number is already taken.
+
+#### `DELETE /users/:id` 🆕
+Permanently delete a user. **Admin only.**
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `204 No Content`
+**Error:** `404 Not Found`.
+
 ---
 
 ## Error Responses
-
-All errors follow this format:
 
 ```json
 {
@@ -424,13 +302,8 @@ All errors follow this format:
 }
 ```
 
-### Common HTTP Status Codes
+**HTTP status codes:** `200` success, `201` created, `204` no content, `400` validation, `401` unauthenticated, `403` forbidden, `404` not found, `409` business rule conflict, `500` server error.
 
-- `200 OK` - Success
-- `201 Created` - Resource created
-- `400 Bad Request` - Validation error
-- `401 Unauthorized` - Missing/invalid token
-- `403 Forbidden` - Insufficient permissions
-- `404 Not Found` - Resource not found
-- `409 Conflict` - Business rule violation (conflict, limit exceeded)
-- `500 Internal Server Error` - Server error
+---
+
+---

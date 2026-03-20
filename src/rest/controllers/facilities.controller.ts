@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { facilityService } from '../../core/services/facility.service';
-import { validate, slotAvailabilitySchema } from '../../core/validators/booking.validator';
+import { validate, slotAvailabilitySchema, createFacilitySchema, updateFacilitySchema } from '../../core/validators/booking.validator';
 
 export class FacilitiesController {
   async getAllFacilities(
@@ -54,6 +54,31 @@ export class FacilitiesController {
     } catch (error) {
       next(error);
     }
+  }
+  
+  async createFacility(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = validate(createFacilitySchema, req.body);
+      const facility = await facilityService.createFacility(data);
+      res.status(201).json(facility);
+    } catch (error) { next(error); }
+  }
+
+  async updateFacility(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      const data = validate(updateFacilitySchema, req.body);
+      const facility = await facilityService.updateFacility(id, data);
+      res.status(200).json(facility);
+    } catch (error) { next(error); }
+  }
+
+  async deleteFacility(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      await facilityService.deleteFacility(id);
+      res.status(204).send();
+    } catch (error) { next(error); }
   }
 }
 

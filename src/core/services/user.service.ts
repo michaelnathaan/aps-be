@@ -1,5 +1,5 @@
-import { User, UserDashboard, LoginDTO, AuthResponse } from '../../core/types';
-import { NotFoundError, UnauthorizedError } from '../../core/errors/custom-errors';
+import { User, UserDashboard, LoginDTO, AuthResponse, CreateUserDTO, UpdateUserDTO } from '../../core/types';
+import { ConflictError, NotFoundError, UnauthorizedError } from '../../core/errors/custom-errors';
 import { usersQueries } from '../../db/queries/users.queries';
 import { bookingsQueries } from '../../db/queries/bookings.queries';
 import jwt, { SignOptions } from "jsonwebtoken";
@@ -116,6 +116,36 @@ export class UserService {
         } catch {
             return null;
         }
+    }
+
+    async getAllUsers(): Promise<User[]> {
+        return await usersQueries.findAll();
+    }
+
+    async createUser(data: CreateUserDTO): Promise<User> {
+        const existing = await usersQueries.findByPhoneNumber(data.phoneNumber);
+        if (existing) {
+            throw new ConflictError(`Phone number ${data.phoneNumber} is already registered`);
+        }
+        return await usersQueries.create(data);
+    }
+
+    async updateUser(id: number, data: UpdateUserDTO): Promise<User> {
+        await this.getUserById(id); // ensures user exists, throws NotFoundError if not
+        if (data.phoneNumber) {
+            const existing = await usersQueries.findByPhoneNumber(data.phoneNumber);
+            if (existing && existing.id !== id) {
+                throw new ConflictError(`Phone number ${data.phoneNumber} is already registered`);
+            }
+        }
+        const updated = await usersQueries.update(id, data);
+        if (!updated) throw new NotFoundError('User', id);
+        return updated;
+    }
+
+    async deleteUser(id: number): Promise<boolean> {
+        await this.getUserById(id);
+        return await usersQueries.delete(id);
     }
 }
 

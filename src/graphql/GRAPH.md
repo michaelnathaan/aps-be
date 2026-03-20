@@ -1,263 +1,100 @@
-# GraphQL API Documentation
+# Updated GraphQL API Documentation
 
 Endpoint: `http://localhost:3002/graphql`
-
 Playground: `http://localhost:3002/` (development only)
-
----
 
 ## Authentication
 
-Include JWT token in HTTP headers:
-
 ```json
-{
-  "Authorization": "Bearer <token>"
-}
+{ "Authorization": "Bearer <token>" }
 ```
 
 ---
 
 ## Queries
 
-### **me**
+### `me`
 Get current authenticated user.
-
-**Query:**
 ```graphql
 query GetMe {
-  me {
-    id
-    fullName
-    phoneNumber
-    role
-    isVerifiedTenant
-    unitNumber
-  }
+  me { id fullName phoneNumber role isVerifiedTenant unitNumber }
 }
 ```
 
-**Response:**
-```json
-{
-  "data": {
-    "me": {
-      "id": 3,
-      "fullName": "Budi Santoso",
-      "phoneNumber": "+6281234567892",
-      "role": "TENANT",
-      "isVerifiedTenant": true,
-      "unitNumber": "1703"
-    }
-  }
-}
-```
-
----
-
-### **facilities**
+### `facilities`
 Get all active facilities.
-
-**Query:**
 ```graphql
 query GetFacilities {
-  facilities {
-    id
-    name
-    description
-    pricePerHour
-    openTime
-    closeTime
-    isActive
-  }
+  facilities { id name description pricePerHour openTime closeTime isActive }
 }
 ```
 
-**Response:**
-```json
-{
-  "data": {
-    "facilities": [
-      {
-        "id": 1,
-        "name": "Tennis Court",
-        "description": "Outdoor tennis court...",
-        "pricePerHour": 50000,
-        "openTime": "06:00:00",
-        "closeTime": "22:00:00",
-        "isActive": true
-      }
-    ]
-  }
-}
-```
-
----
-
-### **facility**
-Get facility by ID.
-
-**Query:**
+### `facility`
 ```graphql
 query GetFacility($id: Int!) {
-  facility(id: $id) {
-    id
-    name
-    description
-    pricePerHour
-    openTime
-    closeTime
-  }
+  facility(id: $id) { id name description pricePerHour openTime closeTime isActive }
 }
 ```
+**Variables:** `{ "id": 1 }`
 
-**Variables:**
-```json
-{
-  "id": 1
-}
-```
-
----
-
-### **availableSlots**
-Get available time slots for a facility.
-
-**Query:**
+### `availableSlots`
 ```graphql
 query GetAvailableSlots($input: SlotAvailabilityInput!) {
   availableSlots(input: $input) {
     facilityId
     date
-    slots {
-      startTime
-      endTime
-      isAvailable
-    }
+    slots { startTime endTime isAvailable }
+  }
+}
+```
+**Variables:** `{ "input": { "facilityId": 1, "date": "2026-01-22" } }`
+
+### `bookings` 🆕
+Get all bookings in the system. Admin only.
+```graphql
+query GetBookings {
+  bookings {
+    id
+    bookingDate
+    startTime
+    endTime
+    status
+    totalPrice
+    user { id fullName }
+    facility { id name }
   }
 }
 ```
 
-**Variables:**
-```json
-{
-  "input": {
-    "facilityId": 1,
-    "date": "2026-01-22"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "availableSlots": {
-      "facilityId": 1,
-      "date": "2026-01-22T00:00:00.000Z",
-      "slots": [
-        {
-          "startTime": "06:00:00",
-          "endTime": "07:00:00",
-          "isAvailable": false
-        },
-        {
-          "startTime": "07:00:00",
-          "endTime": "08:00:00",
-          "isAvailable": true
-        }
-      ]
-    }
-  }
-}
-```
-
----
-
-### **booking**
-Get booking by ID.
-
-**Query:**
+### `booking`
 ```graphql
 query GetBooking($id: Int!) {
   booking(id: $id) {
-    id
-    bookingDate
-    startTime
-    endTime
-    status
-    totalPrice
-    user {
-      id
-      fullName
-    }
-    facility {
-      id
-      name
-    }
+    id bookingDate startTime endTime status totalPrice
+    user { id fullName }
+    facility { id name }
   }
 }
 ```
+**Variables:** `{ "id": 301 }`
 
-**Variables:**
-```json
-{
-  "id": 301
-}
-```
-
----
-
-### **userBookings**
-Get all bookings for a user.
-
-**Query:**
+### `userBookings`
 ```graphql
 query GetUserBookings($userId: Int!) {
   userBookings(userId: $userId) {
-    id
-    bookingDate
-    startTime
-    endTime
-    status
-    totalPrice
-    facility {
-      name
-      pricePerHour
-    }
+    id bookingDate startTime endTime status totalPrice
+    facility { name pricePerHour }
   }
 }
 ```
+**Variables:** `{ "userId": 3 }`
 
-**Variables:**
-```json
-{
-  "userId": 3
-}
-```
-
----
-
-### **userDashboard**
-Get user dashboard with statistics.
-
-**Query:**
+### `userDashboard`
 ```graphql
 query GetUserDashboard($userId: Int!) {
   userDashboard(userId: $userId) {
-    user {
-      id
-      fullName
-      role
-    }
-    bookings {
-      id
-      bookingDate
-      status
-      facility {
-        name
-      }
-    }
+    user { id fullName role }
+    bookings { id bookingDate status facility { name } }
     bookingCountToday
     upcomingBookings
     totalSpent
@@ -265,29 +102,18 @@ query GetUserDashboard($userId: Int!) {
 }
 ```
 
-**Variables:**
-```json
-{
-  "userId": 3
+### `users` 🆕
+Get all users. Admin only.
+```graphql
+query GetUsers {
+  users { id fullName phoneNumber role isVerifiedTenant unitNumber }
 }
 ```
 
-**Response:**
-```json
-{
-  "data": {
-    "userDashboard": {
-      "user": {
-        "id": 3,
-        "fullName": "Budi Santoso",
-        "role": "TENANT"
-      },
-      "bookings": [...],
-      "bookingCountToday": 1,
-      "upcomingBookings": 3,
-      "totalSpent": 0
-    }
-  }
+### `user`
+```graphql
+query GetUser($id: Int!) {
+  user(id: $id) { id fullName phoneNumber role isVerifiedTenant unitNumber }
 }
 ```
 
@@ -295,77 +121,107 @@ query GetUserDashboard($userId: Int!) {
 
 ## Mutations
 
-### **login**
-Authenticate and get JWT token.
-
-**Mutation:**
+### `login`
 ```graphql
 mutation Login($input: LoginInput!) {
   login(input: $input) {
     token
-    user {
-      id
-      fullName
-      phoneNumber
-      role
-      isVerifiedTenant
-    }
+    user { id fullName phoneNumber role isVerifiedTenant }
   }
 }
 ```
+**Variables:** `{ "input": { "phoneNumber": "+6281234567892" } }`
 
+### `createFacility` 🆕
+```graphql
+mutation CreateFacility($input: CreateFacilityInput!) {
+  createFacility(input: $input) {
+    id name description pricePerHour openTime closeTime isActive
+  }
+}
+```
 **Variables:**
 ```json
 {
   "input": {
-    "phoneNumber": "+6281234567892"
+    "name": "Swimming Pool",
+    "description": "Olympic-size indoor pool",
+    "pricePerHour": 75000,
+    "openTime": "06:00:00",
+    "closeTime": "21:00:00",
+    "isActive": true
   }
 }
 ```
 
-**Response:**
+### `updateFacility` 🆕
+```graphql
+mutation UpdateFacility($id: Int!, $input: UpdateFacilityInput!) {
+  updateFacility(id: $id, input: $input) {
+    id name pricePerHour isActive
+  }
+}
+```
+**Variables:** `{ "id": 1, "input": { "pricePerHour": 80000, "isActive": false } }`
+
+### `deleteFacility` 🆕
+```graphql
+mutation DeleteFacility($id: Int!) {
+  deleteFacility(id: $id)
+}
+```
+**Variables:** `{ "id": 1 }`
+**Response:** `{ "data": { "deleteFacility": true } }`
+
+### `createUser` 🆕
+```graphql
+mutation CreateUser($input: CreateUserInput!) {
+  createUser(input: $input) {
+    id fullName phoneNumber role isVerifiedTenant unitNumber
+  }
+}
+```
+**Variables:**
 ```json
 {
-  "data": {
-    "login": {
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "user": {
-        "id": 3,
-        "fullName": "Budi Santoso",
-        "phoneNumber": "+6281234567892",
-        "role": "TENANT",
-        "isVerifiedTenant": true
-      }
-    }
+  "input": {
+    "fullName": "Siti Rahayu",
+    "phoneNumber": "+6289876543210",
+    "role": "TENANT",
+    "isVerifiedTenant": true,
+    "unitNumber": "0802"
   }
 }
 ```
 
----
+### `updateUser` 🆕
+```graphql
+mutation UpdateUser($id: Int!, $input: UpdateUserInput!) {
+  updateUser(id: $id, input: $input) {
+    id fullName role isVerifiedTenant unitNumber
+  }
+}
+```
+**Variables:** `{ "id": 3, "input": { "isVerifiedTenant": true, "unitNumber": "1203" } }`
 
-### **createBooking**
-Create a new booking.
+### `deleteUser` 🆕
+```graphql
+mutation DeleteUser($id: Int!) {
+  deleteUser(id: $id)
+}
+```
+**Variables:** `{ "id": 3 }`
 
-**Mutation:**
+### `createBooking`
 ```graphql
 mutation CreateBooking($input: CreateBookingInput!) {
   createBooking(input: $input) {
-    id
-    bookingDate
-    startTime
-    endTime
-    status
-    totalPrice
-    user {
-      fullName
-    }
-    facility {
-      name
-    }
+    id bookingDate startTime endTime status totalPrice
+    user { fullName }
+    facility { name }
   }
 }
 ```
-
 **Variables:**
 ```json
 {
@@ -379,175 +235,90 @@ mutation CreateBooking($input: CreateBookingInput!) {
 }
 ```
 
-**Response:**
-```json
-{
-  "data": {
-    "createBooking": {
-      "id": 301,
-      "bookingDate": "2026-01-22T00:00:00.000Z",
-      "startTime": "14:00:00",
-      "endTime": "15:00:00",
-      "status": "PENDING",
-      "totalPrice": 0,
-      "user": {
-        "fullName": "Budi Santoso"
-      },
-      "facility": {
-        "name": "Tennis Court"
-      }
-    }
-  }
-}
-```
-
-**Error Response:**
-```json
-{
-  "errors": [
-    {
-      "message": "Facility \"Tennis Court\" is already booked on 2026-01-22 at 14:00:00-15:00:00",
-      "extensions": {
-        "code": "BOOKING_CONFLICT",
-        "statusCode": 409
-      }
-    }
-  ]
-}
-```
-
----
-
-### **confirmBooking**
-Confirm a pending booking.
-
-**Mutation:**
+### `confirmBooking`
 ```graphql
 mutation ConfirmBooking($id: Int!) {
-  confirmBooking(id: $id) {
-    id
-    status
-  }
+  confirmBooking(id: $id) { id status }
 }
 ```
 
-**Variables:**
-```json
-{
-  "id": 301
-}
-```
-
----
-
-### **cancelBooking**
-Cancel a booking.
-
-**Mutation:**
+### `cancelBooking`
 ```graphql
 mutation CancelBooking($id: Int!) {
-  cancelBooking(id: $id) {
-    id
-    status
-  }
+  cancelBooking(id: $id) { id status }
 }
 ```
 
-**Variables:**
-```json
-{
-  "id": 301
+### `deleteBooking` 🆕
+Permanently removes the booking record. Admin only.
+```graphql
+mutation DeleteBooking($id: Int!) {
+  deleteBooking(id: $id)
 }
 ```
+**Variables:** `{ "id": 301 }`
+**Response:** `{ "data": { "deleteBooking": true } }`
 
 ---
 
 ## Error Handling
 
-All errors follow this format:
-
 ```json
 {
-  "errors": [
-    {
-      "message": "Error message",
-      "extensions": {
-        "code": "ERROR_CODE",
-        "statusCode": 400
-      }
-    }
-  ]
+  "errors": [{
+    "message": "Error message",
+    "extensions": { "code": "ERROR_CODE", "statusCode": 400 }
+  }]
 }
 ```
 
-### Common Error Codes
-
-- `UNAUTHENTICATED` - Not logged in
-- `NOT_FOUND` - Resource not found
-- `VALIDATION_ERROR` - Input validation failed
-- `BOOKING_CONFLICT` - Time slot already booked
-- `BOOKING_LIMIT_EXCEEDED` - Max 4 bookings per day reached
-- `INVALID_TIME_SLOT` - Invalid time format or logic
-- `FACILITY_CLOSED` - Booking outside operating hours
+**Error codes:** `UNAUTHENTICATED`, `NOT_FOUND`, `VALIDATION_ERROR`, `BOOKING_CONFLICT`, `BOOKING_LIMIT_EXCEEDED`, `INVALID_TIME_SLOT`, `FACILITY_CLOSED`, `CONFLICT` (phone number already registered).
 
 ---
 
-## Advanced Features
+---
 
-### DataLoader (N+1 Prevention)
+# Testing GraphQL — the tool to use
 
-When querying bookings with nested user/facility data, DataLoader automatically batches database queries:
+Since you're already on Postman, the simplest answer is: **just use Postman**. It has full GraphQL support built in since 2020, works identically on Windows and Ubuntu, and you already know the interface. No new tool to learn.
 
+Here's how to set it up:
+
+**1. Create a new request**, change the method to `POST`, and set the URL to `http://localhost:3002/graphql`.
+
+**2. Go to the Body tab**, select `GraphQL`. Postman will show two boxes — one for the query, one for the variables. It also fetches your schema automatically and gives you autocomplete.
+
+**3. For authenticated requests**, go to the Headers tab and add:
+```
+Authorization    Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**4. Example — create a booking:**
+
+Query box:
 ```graphql
-query GetUserBookings($userId: Int!) {
-  userBookings(userId: $userId) {
+mutation CreateBooking($input: CreateBookingInput!) {
+  createBooking(input: $input) {
     id
-    user {        # ← DataLoader batches all user lookups
-      fullName
-    }
-    facility {    # ← DataLoader batches all facility lookups
-      name
-    }
+    status
+    totalPrice
+    facility { name }
+  }
+}
+```
+Variables box:
+```json
+{
+  "input": {
+    "userId": 3,
+    "facilityId": 1,
+    "bookingDate": "2026-03-20",
+    "startTime": "10:00:00",
+    "endTime": "11:00:00"
   }
 }
 ```
 
-**Without DataLoader:** 1 + N + N queries (1 booking query + N user queries + N facility queries)
+**5. Save your requests into a Collection** the same way you do for REST — one folder for Queries, one for Mutations, one for Auth. You can share the collection between your Windows and Ubuntu machines by exporting it as a JSON file or syncing through a Postman account.
 
-**With DataLoader:** 1 + 2 queries (1 booking query + 1 batched user query + 1 batched facility query)
-
----
-
-### Depth Limiting
-
-Queries are limited to 7 levels of nesting to prevent abuse.
-
-**This will be rejected:**
-```graphql
-query DeepQuery {
-  userDashboard(userId: 1) {
-    bookings {
-      facility {
-        # ... 8 more levels ... ❌
-      }
-    }
-  }
-}
-```
-
----
-
-## Testing Queries
-
-Use the GraphQL Playground at `http://localhost:3002/` (development only).
-
-Or use curl:
-
-```bash
-curl -X POST http://localhost:3002/graphql \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{
-    "query": "query { facilities { id name } }"
-  }'
-```
+The only alternative worth knowing about is **Insomnia**, which also runs on both Windows and Ubuntu and has a clean GraphQL mode, but since you're already in Postman there's no reason to switch.

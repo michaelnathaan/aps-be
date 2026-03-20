@@ -126,3 +126,37 @@ export interface AuthResponse {
   token: string;
   user: User;
 }
+
+export interface CreateFacilityDTO {
+  name: string;
+  description?: string | null;
+  pricePerHour: number;
+  openTime: string;
+  closeTime: string;
+  isActive?: boolean;
+}
+
+export interface UpdateFacilityDTO {
+  name?: string;
+  description?: string | null;
+  pricePerHour?: number;
+  openTime?: string;
+  closeTime?: string;
+  isActive?: boolean;
+}
+
+export interface CreateUserDTO {
+  fullName: string;
+  phoneNumber: string;
+  role?: UserRole;
+  isVerifiedTenant?: boolean;
+  unitNumber?: string | null;
+}
+
+export interface UpdateUserDTO {
+  fullName?: string;
+  phoneNumber?: string;
+  role?: UserRole;
+  isVerifiedTenant?: boolean;
+  unitNumber?: string | null;
+}
