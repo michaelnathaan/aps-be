@@ -1,0 +1,261 @@
+{
+	"info": {
+		"_postman_id": "6010b6a7-3952-412a-a869-eb11b4f2dbce",
+		"name": "APS GraphQL API",
+		"description": "GraphQL collection for APS API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "42106828"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "mutation Login($input: LoginInput!) { login(input: $input) { token user { id fullName role } } }",
+								"variables": "{ \"input\": { \"phoneNumber\": \"+6281234567892\" } }"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Queries",
+			"item": [
+				{
+					"name": "Me",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetMe { me { id fullName phoneNumber role isVerifiedTenant unitNumber } }",
+								"variables": "{}"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Facilities",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetFacilities { facilities { id name description pricePerHour openTime closeTime isActive } }",
+								"variables": "{}"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Facility By ID",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetFacility($id: Int!) { facility(id: $id) { id name description pricePerHour openTime closeTime isActive } }",
+								"variables": "{ \"id\": 1 }"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Available Slots",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetAvailableSlots($input: SlotAvailabilityInput!) { availableSlots(input: $input) { facilityId date slots { startTime endTime isAvailable } } }",
+								"variables": "{ \"input\": { \"facilityId\": 1, \"date\": \"2026-01-22\" } }"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Bookings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetBookings { bookings { id bookingDate startTime endTime status totalPrice user { id fullName } facility { id name } } }",
+								"variables": "{}"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Mutations",
+			"item": [
+				{
+					"name": "Create Facility",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "mutation CreateFacility($input: CreateFacilityInput!) { createFacility(input: $input) { id name pricePerHour isActive } }",
+								"variables": "{ \"input\": { \"name\": \"Swimming Pool\", \"description\": \"Olympic-size indoor pool\", \"pricePerHour\": 75000, \"openTime\": \"06:00:00\", \"closeTime\": \"21:00:00\", \"isActive\": true } }"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Booking",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "mutation CreateBooking($input: CreateBookingInput!) { createBooking(input: $input) { id status totalPrice facility { name } } }",
+								"variables": "{ \"input\": { \"userId\": 3, \"facilityId\": 1, \"bookingDate\": \"2026-03-20\", \"startTime\": \"10:00:00\", \"endTime\": \"11:00:00\" } }"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Booking",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "mutation ConfirmBooking($id: Int!) { confirmBooking(id: $id) { id status } }",
+								"variables": "{ \"id\": 1 }"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Booking",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "mutation DeleteBooking($id: Int!) { deleteBooking(id: $id) }",
+								"variables": "{ \"id\": 301 }"
+							}
+						},
+						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": {
+			"token": "{{token}}"
+		}
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "graphqlUrl",
+			"value": "http://localhost:3002/graphql"
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	]
+}
