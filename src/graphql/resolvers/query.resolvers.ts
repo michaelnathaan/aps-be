@@ -52,22 +52,32 @@ export const queryResolvers = {
       return await bookingService.getBookingById(id);
     },
 
-    userBookings: async (_: any, { userId }: { userId: number }, context: GraphQLContext) => {
+    userBookings: async (
+      _: any,
+      { userId, limit, offset }: { userId: number; limit: number; offset: number },
+      context: GraphQLContext
+    ) => {
       if (!context.user) {
         throw new GraphQLError('Not authenticated', {
           extensions: { code: 'UNAUTHENTICATED' }
         });
       }
-      return await bookingService.getUserBookings(userId);
+
+      return await bookingService.getUserBookingsPaginated(userId, limit, offset);
     },
 
-    userDashboard: async (_: any, { userId }: { userId: number }, context: GraphQLContext) => {
+    userDashboard: async (
+      _: any,
+      { userId, limit, offset }: { userId: number; limit: number; offset: number },
+      context: GraphQLContext
+    ) => {
       if (!context.user) {
         throw new GraphQLError('Not authenticated', {
           extensions: { code: 'UNAUTHENTICATED' }
         });
       }
-      return await userService.getUserDashboard(userId);
+
+      return await userService.getUserDashboard(userId, limit, offset);
     },
 
     users: async (_: any, __: any, context: GraphQLContext) => {

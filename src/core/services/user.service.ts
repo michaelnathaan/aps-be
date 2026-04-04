@@ -3,7 +3,6 @@ import { ConflictError, NotFoundError, UnauthorizedError } from '../../core/erro
 import { usersQueries } from '../../db/queries/users.queries';
 import { bookingsQueries } from '../../db/queries/bookings.queries';
 import jwt, { SignOptions } from "jsonwebtoken";
-import { startOfDay, isFuture } from 'date-fns';
 
 /**
  * Handles user authentication and dashboard logic.
@@ -67,35 +66,24 @@ export class UserService {
      * - Upcoming bookings count
      * - Total amount spent
      */
-    async getUserDashboard(userId: number): Promise<UserDashboard> {
+    async getUserDashboard(
+        userId: number,
+        limit: number,
+        offset: number
+    ): Promise<UserDashboard> {
         const user = await this.getUserById(userId);
 
-        const bookings = await bookingsQueries.findByUserId(userId);
-
-        const today = startOfDay(new Date());
-
-        const bookingCountToday = bookings.filter(b => {
-            const bookingDay = startOfDay(new Date(b.bookingDate));
-            return bookingDay.getTime() === today.getTime() &&
-                (b.status === 'pending' || b.status === 'confirmed');
-        }).length;
-
-        const upcomingBookings = bookings.filter(b => {
-            const bookingDate = new Date(b.bookingDate);
-            return isFuture(bookingDate) &&
-                (b.status === 'pending' || b.status === 'confirmed');
-        }).length;
-
-        const totalSpent = bookings
-            .filter(b => b.status === 'confirmed')
-            .reduce((sum, b) => sum + b.totalPrice, 0);
+        const [stats, bookings] = await Promise.all([
+            bookingsQueries.getUserDashboardStats(userId),
+            bookingsQueries.findByUserIdPaginated(userId, limit, offset),
+        ]);
 
         return {
             user,
             bookings,
-            bookingCountToday,
-            upcomingBookings,
-            totalSpent
+            bookingCountToday: stats.bookingCountToday,
+            upcomingBookings: stats.upcomingBookings,
+            totalSpent: stats.totalSpent,
         };
     }
 

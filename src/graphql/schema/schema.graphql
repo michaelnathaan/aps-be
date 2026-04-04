@@ -155,8 +155,8 @@ type Query {
 
   bookings: [Booking!]!           # was missing
   booking(id: Int!): Booking!
-  userBookings(userId: Int!): [Booking!]!
-  userDashboard(userId: Int!): UserDashboard!
+  userBookings(userId: Int!, limit: Int!, offset: Int!): [Booking!]!
+  userDashboard(userId: Int!, limit: Int!, offset: Int!): UserDashboard!
 
   users: [User!]!                 # was missing
   user(id: Int!): User!

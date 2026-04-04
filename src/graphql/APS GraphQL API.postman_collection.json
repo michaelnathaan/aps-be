@@ -118,11 +118,43 @@
 						"body": {
 							"mode": "graphql",
 							"graphql": {
-								"query": "query GetBookings { bookings { id bookingDate startTime endTime status totalPrice user { id fullName } facility { id name } } }",
-								"variables": "{}"
+								"query": "query GetUserBookings($userId: Int!, $limit: Int!, $offset: Int!) {\n  userBookings(userId: $userId, limit: $limit, offset: $offset) {\n    id\n    bookingDate\n    startTime\n    endTime\n    status\n    totalPrice\n    user {\n      id\n      fullName\n      phoneNumber\n      role\n    }\n    facility {\n      id\n      name\n      description\n      pricePerHour\n      openTime\n      closeTime\n    }\n  }\n}",
+								"variables": "{\n  \"userId\": 1,\n  \"limit\": 10,\n  \"offset\": 0\n}"
 							}
 						},
 						"url": "{{graphqlUrl}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Bookings",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetUserBookings($userId: Int!, $limit: Int!, $offset: Int!) { userBookings(userId: $userId, limit: $limit, offset: $offset) { id bookingDate startTime endTime status totalPrice user { id fullName phoneNumber role } facility { id name description pricePerHour openTime closeTime } } }",
+								"variables": "{\n    \"userId\": 1,\n    \"limit\": 10,\n    \"offset\": 0\n  }"
+							}
+						},
+						"url": "http://localhost:3002/graphql"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Dashboard",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetUserDashboard($userId: Int!, $limit: Int!, $offset: Int!) {\n    userDashboard(userId: $userId, limit: $limit, offset: $offset) {\n      user {\n        id\n        fullName\n        phoneNumber\n        role\n        isVerifiedTenant\n      }\n      bookings {\n        id\n        bookingDate\n        startTime\n        endTime\n        status\n        totalPrice\n        facility {\n          id\n          name\n          pricePerHour\n        }\n        user {\n          id\n          fullName\n        }\n      }\n      bookingCountToday\n      upcomingBookings\n      totalSpent\n    }\n  }",
+								"variables": "{\n    \"userId\": 1,\n    \"limit\": 10,\n    \"offset\": 0\n}"
+							}
+						},
+						"url": "http://localhost:3002/graphql"
 					},
 					"response": []
 				}

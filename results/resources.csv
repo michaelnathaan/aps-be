@@ -1,0 +1,10 @@
+timestamp,container,cpu_percent,mem_usage_mb,mem_limit_mb,mem_percent,net_input_mb,net_output_mb
+1774843149,aps-rest-api,0.33,44.38,512,8.67,8.61,19.2
+1774843151,aps-graphql-api,0.02,32.35,512,6.32,27kB,126B
+1774843153,aps-postgres,0.01,45.8,15.46GiB,0.29,4.33,5.69
+1774843160,aps-rest-api,0.02,43.75,512,8.54,8.61,19.2
+1774843162,aps-graphql-api,0.01,32.59,512,6.36,27kB,126B
+1774843164,aps-postgres,0.00,44.4,15.46GiB,0.28,4.33,5.69
+1774843170,aps-rest-api,0.04,43.76,512,8.55,8.61,19.2
+1774843172,aps-graphql-api,0.01,32.37,512,6.32,27kB,126B
+1774843174,aps-postgres,0.00,44.46,15.46GiB,0.28,4.33,5.69
