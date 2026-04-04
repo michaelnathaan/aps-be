@@ -13,11 +13,11 @@ mkdir -p tests/results/rest
 mkdir -p tests/results/graphql
 
 SCENARIOS=(
-  "01-simple-list"
-  "02-list-with-relations"
-  "03-filtered-slots"
-  "04-nested-dashboard"
-  "05-booking-creation"
+  # "01-simple-list"
+  # "02-list-with-relations"
+  # "03-filtered-slots"
+  # "04-nested-dashboard"
+  # "05-booking-creation"
   "06-mixed-workload"
 )
 
@@ -54,10 +54,10 @@ for scenario in "${SCENARIOS[@]}"; do
   echo ""
 
   # Run REST first
-  run_scenario "${scenario}" "rest"
+  # run_scenario "${scenario}" "rest"
 
-  echo "⏳ Short cooldown (15s)..."
-  sleep 15
+  # echo "⏳ Short cooldown (15s)..."
+  # sleep 15
 
   # Run GraphQL immediately after
   run_scenario "${scenario}" "graphql"

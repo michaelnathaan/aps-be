@@ -89,8 +89,12 @@ export class BookingService {
     return booking;
   }
 
-  async getUserBookings(userId: number): Promise<BookingWithDetails[]> {
-    return await bookingsQueries.findByUserId(userId);
+  async getUserBookingsPaginated(
+    userId: number,
+    limit: number,
+    offset: number
+  ): Promise<BookingWithDetails[]> {
+    return await bookingsQueries.findByUserIdPaginated(userId, limit, offset);
   }
 
   async confirmBooking(id: number): Promise<Booking> {

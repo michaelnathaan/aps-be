@@ -18,7 +18,11 @@ export class UsersController {
   async getUserBookings(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = parseInt(req.params.id);
-      const bookings = await bookingService.getUserBookings(userId);
+
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const bookings = await bookingService.getUserBookingsPaginated(userId, limit, offset);
 
       res.status(200).json(bookings);
     } catch (error) {
@@ -29,7 +33,11 @@ export class UsersController {
   async getUserDashboard(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = parseInt(req.params.id);
-      const dashboard = await userService.getUserDashboard(userId);
+
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const dashboard = await userService.getUserDashboard(userId, limit, offset);
 
       res.status(200).json(dashboard);
     } catch (error) {

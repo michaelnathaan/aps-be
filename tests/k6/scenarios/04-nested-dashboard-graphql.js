@@ -20,8 +20,8 @@ export const options = {
 };
 
 const query = `
-  query GetUserDashboard($userId: Int!) {
-    userDashboard(userId: $userId) {
+  query GetUserDashboard($userId: Int!, $limit: Int!, $offset: Int!) {
+    userDashboard(userId: $userId, limit: $limit, offset: $offset) {
       user {
         id
         fullName
@@ -65,15 +65,17 @@ export function setup() {
 export default function (data) {
   // Randomly select a user
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
-  
+
   const payload = createGraphQLPayload(query, {
     userId: userToken.userId,
+    limit: 10,
+    offset: 0,
   });
-  
+
   const response = http.post(GRAPHQL_URL, payload, {
     headers: authHeaders(userToken.token),
   });
-  
+
   // Validation
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
@@ -82,14 +84,14 @@ export default function (data) {
     'has user': (r) => JSON.parse(r.body).data.userDashboard.user !== null,
     'has bookings': (r) => Array.isArray(JSON.parse(r.body).data.userDashboard.bookings),
   });
-  
+
   if (success) {
     const body = JSON.parse(response.body);
     const dashboard = body.data.userDashboard;
     bookingsCount.add(dashboard.bookings.length);
     responseSize.add(response.body.length);
   }
-  
+
   sleep(1);
 }
 

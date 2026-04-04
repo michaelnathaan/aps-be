@@ -34,7 +34,7 @@ export default function (data) {
   // Get user's bookings (includes nested user and facility data)
   // This tests REST's JOIN efficiency vs GraphQL's DataLoader
   const response = http.get(
-    `${REST_BASE_URL}/users/${userToken.userId}/bookings`,
+    `${REST_BASE_URL}/users/${userToken.userId}/bookings?limit=10&offset=0`,
     { headers: authHeaders(userToken.token) }
   );
   

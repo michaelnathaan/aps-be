@@ -34,7 +34,7 @@ export default function (data) {
   
   // Get user dashboard (includes user + bookings + stats)
   const response = http.get(
-    `${REST_BASE_URL}/users/${userToken.userId}/dashboard`,
+    `${REST_BASE_URL}/users/${userToken.userId}/dashboard?limit=10&offset=0`,
     { headers: authHeaders(userToken.token) }
   );
   

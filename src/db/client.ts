@@ -9,7 +9,7 @@ const pool = new Pool({
     user: process.env.DB_USER || 'apsadmin',
     password: process.env.DB_PASSWORD || 'adminpassword',
     database: process.env.DB_NAME || 'aps_db',
-    max: 20,
+    max: 50,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
 });

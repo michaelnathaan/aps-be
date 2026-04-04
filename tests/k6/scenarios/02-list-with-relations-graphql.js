@@ -21,8 +21,8 @@ export const options = {
 };
 
 const query = `
-  query GetUserBookings($userId: Int!) {
-    userBookings(userId: $userId) {
+  query GetUserBookings($userId: Int!, $limit: Int!, $offset: Int!) {
+    userBookings(userId: $userId, limit: $limit, offset: $offset) {
       id
       bookingDate
       startTime
@@ -57,36 +57,48 @@ export function setup() {
 
 export default function (data) {
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
-  
+
   const payload = createGraphQLPayload(query, {
     userId: userToken.userId,
+    limit: 10,
+    offset: 0,
   });
-  
+
   const response = http.post(GRAPHQL_URL, payload, {
     headers: authHeaders(userToken.token),
   });
-  
+
+  const safeParse = (body) => {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return null;
+    }
+  };
+
+  const parsed = safeParse(response.body);
+
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
-    'no errors': (r) => !JSON.parse(r.body).errors,
-    'is array': (r) => Array.isArray(JSON.parse(r.body).data.userBookings),
-    'has nested user': (r) => {
-      const bookings = JSON.parse(r.body).data.userBookings;
+    'valid JSON': () => parsed !== null,
+    'no errors': () => parsed && !parsed.errors,
+    'is array': () => parsed && Array.isArray(parsed.data?.userBookings),
+    'has nested user': () => {
+      const bookings = parsed?.data?.userBookings || [];
       return bookings.length === 0 || bookings[0].user !== null;
     },
-    'has nested facility': (r) => {
-      const bookings = JSON.parse(r.body).data.userBookings;
+    'has nested facility': () => {
+      const bookings = parsed?.data?.userBookings || [];
       return bookings.length === 0 || bookings[0].facility !== null;
     },
   });
-  
-  if (success) {
-    const bookings = JSON.parse(response.body).data.userBookings;
+
+  if (success && parsed?.data?.userBookings) {
+    const bookings = parsed.data.userBookings;
     bookingsRetrieved.add(bookings.length);
     responseSize.add(response.body.length);
     nestedObjects.add(bookings.length * 2);
   }
-  
   sleep(1);
 }
 

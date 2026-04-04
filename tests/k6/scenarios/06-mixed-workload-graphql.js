@@ -1,30 +1,41 @@
 /**
  * Scenario 6: Mixed Read-Write Workload (GraphQL)
- * Purpose: Simulate realistic user behavior
- * Distribution: 70% browsing, 20% availability checks, 10% booking creation
  */
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { Counter } from 'k6/metrics';
+import { Counter, Rate } from 'k6/metrics';
 import { GRAPHQL_URL, LOAD_CONFIGS, TEST_USERS, createGraphQLPayload } from '../config/graphql.config.js';
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
-import { randomFacilityId, getTomorrowDate, generateTimeSlot } from '../utils/data.js';
+import { randomFacilityId, getTomorrowDate } from '../utils/data.js';
 
-// Custom metrics
+// ===== Metrics (Aligned with REST) =====
+const successRate = new Rate('booking_success');
+const conflictRate = new Rate('booking_conflict');
+const systemFailureRate = new Rate('system_failure');
+
 const browsingRequests = new Counter('browsing_requests');
 const availabilityRequests = new Counter('availability_requests');
 const bookingRequests = new Counter('booking_requests');
-const successfulBookings = new Counter('successful_bookings');
 
+const successfulBookings = new Counter('successful_bookings');
+const bookingConflicts = new Counter('booking_conflicts');
+
+// ===== Options =====
 export const options = {
   stages: LOAD_CONFIGS.mixed.stages,
   thresholds: {
-    'http_req_duration': ['p(95)<800'],
-    'http_req_failed': ['rate<0.05'],
+    http_req_duration: ['p(95)<800'],
+
+    booking_success: ['rate>0.60'],
+    booking_conflict: ['rate<0.30'],
+    system_failure: ['rate<0.05'],
+
+    http_req_failed: ['rate<0.05'],
   },
 };
 
+// ===== Queries =====
 const facilitiesQuery = `
   query GetFacilities {
     facilities {
@@ -79,6 +90,7 @@ const createBookingMutation = `
   }
 `;
 
+// ===== Setup =====
 export function setup() {
   const tokens = TEST_USERS.map(user => ({
     userId: user.userId,
@@ -87,72 +99,168 @@ export function setup() {
   return { tokens };
 }
 
+// ===== Helper: detect conflict =====
+function isConflictError(errors) {
+  if (!errors) return false;
+  return errors.some(e =>
+    e.message?.toLowerCase().includes('conflict') ||
+    e.message?.toLowerCase().includes('already booked')
+  );
+}
+
+// ===== Main =====
 export default function (data) {
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
   const random = Math.random();
-  
+
+  // ======================
+  // 70% - Browsing
+  // ======================
   if (random < 0.7) {
-    // 70% - Browsing
+    let response;
+
     if (Math.random() < 0.5) {
-      // List all facilities
       const payload = createGraphQLPayload(facilitiesQuery);
-      const response = http.post(GRAPHQL_URL, payload, {
-        headers: { 'Content-Type': 'application/json' },
+      response = http.post(GRAPHQL_URL, payload, {
+        headers: authHeaders(userToken.token),
       });
       check(response, { 'browsing: facilities list': (r) => r.status === 200 });
-      browsingRequests.add(1);
     } else {
-      // Get specific facility
       const facilityId = randomFacilityId();
       const payload = createGraphQLPayload(facilityQuery, { id: facilityId });
-      const response = http.post(GRAPHQL_URL, payload, {
-        headers: { 'Content-Type': 'application/json' },
+      response = http.post(GRAPHQL_URL, payload, {
+        headers: authHeaders(userToken.token),
       });
       check(response, { 'browsing: facility details': (r) => r.status === 200 });
-      browsingRequests.add(1);
     }
-  } else if (random < 0.9) {
-    // 20% - Check slot availability
+
+    const body = JSON.parse(response.body);
+
+    if (response.status !== 200 || body.errors) {
+      systemFailureRate.add(1);
+    } else {
+      systemFailureRate.add(0);
+    }
+
+    browsingRequests.add(1);
+  }
+
+  // ======================
+  // 20% - Availability
+  // ======================
+  else if (random < 0.9) {
     const facilityId = randomFacilityId();
     const date = getTomorrowDate();
-    const payload = createGraphQLPayload(slotsQuery, {
-      facilityId: facilityId,
-      date: date,
-    });
-    const response = http.post(GRAPHQL_URL, payload, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    check(response, { 'availability: slots check': (r) => r.status === 200 });
-    availabilityRequests.add(1);
-  } else {
-    // 10% - Create booking
-    const facilityId = randomFacilityId();
-    const timeSlot = generateTimeSlot();
-    
-    const payload = createGraphQLPayload(createBookingMutation, {
-      input: {
-        userId: userToken.userId,
-        facilityId: facilityId,
-        bookingDate: getTomorrowDate(),
-        startTime: timeSlot.startTime,
-        endTime: timeSlot.endTime,
-      },
-    });
-    
+
+    const payload = createGraphQLPayload(slotsQuery, { facilityId, date });
+
     const response = http.post(GRAPHQL_URL, payload, {
       headers: authHeaders(userToken.token),
     });
-    
+
+    check(response, { 'availability: slots check': (r) => r.status === 200 });
+
+    let body = {};
+    try {
+      body = JSON.parse(response.body);
+    } catch (e) {
+      systemFailureRate.add(1);
+      return;
+    }
+
+    if (response.status !== 200 || body.errors) {
+      systemFailureRate.add(1);
+    } else {
+      systemFailureRate.add(0);
+    }
+
+    availabilityRequests.add(1);
+  }
+
+  // ======================
+  // 10% - Booking
+  // ======================
+  else {
+    const facilityId = randomFacilityId();
+    const date = getTomorrowDate();
+
+    // 🔥 Step 1: Availability check
+    const slotsPayload = createGraphQLPayload(slotsQuery, { facilityId, date });
+
+    const availabilityRes = http.post(GRAPHQL_URL, slotsPayload, {
+      headers: authHeaders(userToken.token),
+    });
+
+    let slotsBody = {};
+    try {
+      slotsBody = JSON.parse(availabilityRes.body);
+    } catch (e) {
+      systemFailureRate.add(1);
+      return;
+    }
+
+    if (availabilityRes.status !== 200 || slotsBody.errors) {
+      systemFailureRate.add(1);
+      return;
+    }
+
+    const slots = slotsBody.data?.availableSlots?.slots || [];
+    const availableSlots = slots.filter(s => s.isAvailable);
+
+    if (availableSlots.length === 0) return;
+
+    const slot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
+
+    // 🔥 Step 2: Booking
+    const payload = createGraphQLPayload(createBookingMutation, {
+      input: {
+        userId: userToken.userId,
+        facilityId,
+        bookingDate: date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      },
+    });
+
+    const response = http.post(GRAPHQL_URL, payload, {
+      headers: authHeaders(userToken.token),
+    });
+
     bookingRequests.add(1);
-    const body = JSON.parse(response.body);
+
+    let body = {};
+    try {
+      body = JSON.parse(response.body);
+    } catch (e) {
+      systemFailureRate.add(1);
+      return;
+    }
+
     if (response.status === 200 && !body.errors) {
+      successRate.add(1);
+      conflictRate.add(0);
+      systemFailureRate.add(0);
       successfulBookings.add(1);
+
+    } else if (isConflictError(body.errors)) {
+      // ✅ Expected conflict
+      successRate.add(0);
+      conflictRate.add(1);
+      systemFailureRate.add(0);
+      bookingConflicts.add(1);
+
+    } else {
+      // ❌ Real failure
+      successRate.add(0);
+      conflictRate.add(0);
+      systemFailureRate.add(1);
     }
   }
-  
-  sleep(Math.random() * 2 + 1); // 1-3 seconds between requests
+
+  sleep(Math.random() * 2 + 1);
 }
 
+// ===== Summary =====
 export function handleSummary(data) {
   return {
     'tests/results/graphql/06-mixed-workload.json': JSON.stringify(data, null, 2),
