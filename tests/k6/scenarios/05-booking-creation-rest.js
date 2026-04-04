@@ -7,7 +7,7 @@ import http from 'k6/http';
 import { sleep } from 'k6';
 import { REST_BASE_URL, LOAD_CONFIGS, TEST_USERS } from '../config/rest.config.js';
 import { getRESTToken, authHeaders } from '../utils/auth.js';
-import { randomFacilityId, generateFutureDate, generateTimeSlot } from '../utils/data.js';
+import { randomFacilityId, generateFutureDate } from '../utils/data.js';
 import { Rate, Counter } from 'k6/metrics';
 
 const successRate = new Rate('booking_success');

@@ -92,6 +92,6 @@ export default function (data) {
 
 export function handleSummary(data) {
   return {
-    'results/graphql/02-list-with-relations.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/02-list-with-relations.json': JSON.stringify(data, null, 2),
   };
 }

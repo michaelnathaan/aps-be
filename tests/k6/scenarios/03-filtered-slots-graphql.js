@@ -84,6 +84,6 @@ export default function () {
 
 export function handleSummary(data) {
   return {
-    'results/graphql/03-filtered-slots.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/03-filtered-slots.json': JSON.stringify(data, null, 2),
   };
 }

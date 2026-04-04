@@ -95,6 +95,6 @@ export default function (data) {
 
 export function handleSummary(data) {
   return {
-    'results/graphql/04-nested-dashboard.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/04-nested-dashboard.json': JSON.stringify(data, null, 2),
   };
 }

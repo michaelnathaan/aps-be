@@ -75,6 +75,7 @@ const createBookingMutation = `
       endTime
       status
     }
+    }
   }
 `;
 
@@ -154,6 +155,6 @@ export default function (data) {
 
 export function handleSummary(data) {
   return {
-    'results/graphql/06-mixed-workload.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/06-mixed-workload.json': JSON.stringify(data, null, 2),
   };
 }
