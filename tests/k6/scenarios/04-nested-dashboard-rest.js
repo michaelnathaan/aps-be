@@ -20,7 +20,6 @@ export const options = {
 };
 
 export function setup() {
-  // Get tokens for test users
   const tokens = TEST_USERS.map(user => ({
     userId: user.userId,
     token: getRESTToken(REST_BASE_URL, user.phoneNumber),
@@ -29,16 +28,13 @@ export function setup() {
 }
 
 export default function (data) {
-  // Randomly select a user
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
   
-  // Get user dashboard (includes user + bookings + stats)
   const response = http.get(
     `${REST_BASE_URL}/users/${userToken.userId}/dashboard?limit=10&offset=0`,
     { headers: authHeaders(userToken.token) }
   );
   
-  // Validation
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
     'has user': (r) => JSON.parse(r.body).user !== undefined,

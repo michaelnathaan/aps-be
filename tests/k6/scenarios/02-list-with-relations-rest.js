@@ -10,7 +10,6 @@ import { Counter, Trend } from 'k6/metrics';
 import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS } from '../config/rest.config.js';
 import { getRESTToken, authHeaders } from '../utils/auth.js';
 
-// Custom metrics
 const bookingsRetrieved = new Counter('bookings_retrieved');
 const responseSize = new Trend('response_size_bytes');
 const nestedObjects = new Trend('nested_objects_count');
@@ -31,8 +30,6 @@ export function setup() {
 export default function (data) {
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
   
-  // Get user's bookings (includes nested user and facility data)
-  // This tests REST's JOIN efficiency vs GraphQL's DataLoader
   const response = http.get(
     `${REST_BASE_URL}/users/${userToken.userId}/bookings?limit=10&offset=0`,
     { headers: authHeaders(userToken.token) }
@@ -56,7 +53,6 @@ export default function (data) {
     bookingsRetrieved.add(bookings.length);
     responseSize.add(response.body.length);
     
-    // Count nested objects (user + facility per booking)
     nestedObjects.add(bookings.length * 2);
   }
   

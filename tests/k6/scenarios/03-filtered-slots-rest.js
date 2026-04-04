@@ -57,9 +57,8 @@ export default function () {
     bookedSlots.add(booked);
     responseSize.add(response.body.length);
   } else {
-    // DEBUG (important)
     if (response.status !== 200) {
-      console.log(`❌ REST ERROR ${response.status}: ${response.body}`);
+      console.log(`REST ERROR ${response.status}: ${response.body}`);
     }
   }
 

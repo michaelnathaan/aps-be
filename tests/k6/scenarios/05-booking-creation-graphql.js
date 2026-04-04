@@ -1,7 +1,6 @@
 /**
  * Scenario 5: Booking Creation (GraphQL)
  * Purpose: Test write operations and conflict detection
- * Now aligned with REST flow:
  * 1. Get available slots
  * 2. Pick valid slot
  * 3. Create booking
@@ -19,7 +18,6 @@ import {
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 import { randomFacilityId, generateFutureDate } from '../utils/data.js';
 
-// ✅ Metrics (aligned with REST)
 const successRate = new Rate('booking_success');
 const conflictRate = new Rate('booking_conflict');
 const systemFailureRate = new Rate('system_failure');
@@ -27,7 +25,6 @@ const systemFailureRate = new Rate('system_failure');
 const bookingsCreated = new Counter('bookings_created');
 const bookingConflicts = new Counter('booking_conflicts');
 
-// ✅ Options
 export const options = {
   stages: LOAD_CONFIGS.write.stages,
   thresholds: {
@@ -39,7 +36,6 @@ export const options = {
   },
 };
 
-// ✅ Queries & Mutations
 const getSlotsQuery = `
   query GetAvailableSlots($input: SlotAvailabilityInput!) {
     availableSlots(input: $input) {
@@ -69,7 +65,6 @@ const createBookingMutation = `
   }
 `;
 
-// ✅ Setup
 export function setup() {
   const tokens = TEST_USERS.map(user => ({
     userId: user.userId,
@@ -78,15 +73,11 @@ export function setup() {
   return { tokens };
 }
 
-// ✅ Main Test
 export default function (data) {
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
   const facilityId = randomFacilityId();
   const bookingDate = generateFutureDate();
 
-  // =========================
-  // STEP 1: Get Available Slots
-  // =========================
   const slotPayload = createGraphQLPayload(getSlotsQuery, {
     input: {
       facilityId,
@@ -123,9 +114,6 @@ body=${slotRes.body}`);
 
   const slot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
 
-  // =========================
-  // STEP 2: Create Booking
-  // =========================
   const payload = createGraphQLPayload(createBookingMutation, {
     input: {
       userId: userToken.userId,
@@ -156,9 +144,6 @@ body=${res.body}`);
     return;
   }
 
-  // =========================
-  // STEP 3: Handle Result
-  // =========================
   if (!body.errors) {
     successRate.add(1);
     conflictRate.add(0);
@@ -181,7 +166,6 @@ body=${res.body}`);
     }
   }
 
-  // ✅ Match REST pacing
   sleep(1 + Math.random() * 2);
 }
 

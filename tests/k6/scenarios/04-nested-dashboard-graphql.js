@@ -10,7 +10,6 @@ import { Trend } from 'k6/metrics';
 import { GRAPHQL_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS, createGraphQLPayload } from '../config/graphql.config.js';
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 
-// Custom metrics
 const bookingsCount = new Trend('user_bookings_count');
 const responseSize = new Trend('response_size_bytes');
 
@@ -54,7 +53,6 @@ const query = `
 `;
 
 export function setup() {
-  // Get tokens for test users
   const tokens = TEST_USERS.map(user => ({
     userId: user.userId,
     token: getGraphQLToken(GRAPHQL_URL, user.phoneNumber),
@@ -63,7 +61,6 @@ export function setup() {
 }
 
 export default function (data) {
-  // Randomly select a user
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
 
   const payload = createGraphQLPayload(query, {
@@ -76,7 +73,6 @@ export default function (data) {
     headers: authHeaders(userToken.token),
   });
 
-  // Validation
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
     'no errors': (r) => !JSON.parse(r.body).errors,

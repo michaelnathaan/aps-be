@@ -75,7 +75,7 @@ export default function () {
     responseSize.add(response.body.length);
   } else {
     if (json?.errors) {
-      console.log(`❌ GraphQL errors: ${JSON.stringify(json.errors)}`);
+      console.log(`GraphQL errors: ${JSON.stringify(json.errors)}`);
     }
   }
 

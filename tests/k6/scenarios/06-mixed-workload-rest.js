@@ -1,5 +1,5 @@
 /**
- * Scenario 6: Mixed Read-Write Workload (REST) - Improved
+ * Scenario 6: Mixed Read-Write Workload (REST)
  * Purpose: Simulate realistic user behavior
  * Distribution: 70% browsing, 20% availability checks, 10% booking creation
  */
@@ -17,7 +17,6 @@ setResponseCallback(
     409                     // explicitly allow conflict
   )
 );
-// ===== Metrics (Aligned with Scenario 5) =====
 const successRate = new Rate('booking_success');
 const conflictRate = new Rate('booking_conflict');
 const systemFailureRate = new Rate('system_failure');
@@ -35,7 +34,7 @@ export const options = {
   thresholds: {
     http_req_duration: ['p(95)<800'],
 
-    booking_success: ['rate>0.60'],   // slightly lower due to mixed load
+    booking_success: ['rate>0.60'],
     booking_conflict: ['rate<0.30'],
     system_failure: ['rate<0.05'],
 
@@ -110,7 +109,6 @@ export default function (data) {
     const facilityId = randomFacilityId();
     const date = getTomorrowDate();
 
-    // 🔥 Step 1: Check availability first (realistic)
     const availabilityRes = http.get(
       `${REST_BASE_URL}/facilities/${facilityId}/slots?date=${date}`,
       { headers: authHeaders(userToken.token) }
@@ -160,14 +158,12 @@ export default function (data) {
       successfulBookings.add(1);
 
     } else if (response.status === 409) {
-      // ✅ Expected conflict
       successRate.add(0);
       conflictRate.add(1);
       systemFailureRate.add(0);
       bookingConflicts.add(1);
 
     } else {
-      // ❌ Real failure
       successRate.add(0);
       conflictRate.add(0);
       systemFailureRate.add(1);

@@ -184,7 +184,6 @@ export default function (data) {
     const facilityId = randomFacilityId();
     const date = getTomorrowDate();
 
-    // 🔥 Step 1: Availability check
     const slotsPayload = createGraphQLPayload(slotsQuery, { facilityId, date });
 
     const availabilityRes = http.post(GRAPHQL_URL, slotsPayload, {
@@ -211,7 +210,6 @@ export default function (data) {
 
     const slot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
 
-    // 🔥 Step 2: Booking
     const payload = createGraphQLPayload(createBookingMutation, {
       input: {
         userId: userToken.userId,
@@ -243,14 +241,12 @@ export default function (data) {
       successfulBookings.add(1);
 
     } else if (isConflictError(body.errors)) {
-      // ✅ Expected conflict
       successRate.add(0);
       conflictRate.add(1);
       systemFailureRate.add(0);
       bookingConflicts.add(1);
 
     } else {
-      // ❌ Real failure
       successRate.add(0);
       conflictRate.add(0);
       systemFailureRate.add(1);

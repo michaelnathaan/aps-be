@@ -13,11 +13,11 @@ mkdir -p tests/results/rest
 mkdir -p tests/results/graphql
 
 SCENARIOS=(
-  # "01-simple-list"
-  # "02-list-with-relations"
-  # "03-filtered-slots"
-  # "04-nested-dashboard"
-  # "05-booking-creation"
+  "01-simple-list"
+  "02-list-with-relations"
+  "03-filtered-slots"
+  "04-nested-dashboard"
+  "05-booking-creation"
   "06-mixed-workload"
 )
 
@@ -42,35 +42,35 @@ run_scenario() {
   wait $MONITOR_PID
   
   echo ""
-  echo "✅ Completed: ${scenario} (${api})"
+  echo "Completed: ${scenario} (${api})"
   echo ""
 }
 
-# 🔥 Paired execution
+# Paired execution
 for scenario in "${SCENARIOS[@]}"; do
   echo "##########################################"
-  echo "🚀 Running Scenario Pair: ${scenario}"
+  echo "Running Scenario Pair: ${scenario}"
   echo "##########################################"
   echo ""
 
   # Run REST first
-  # run_scenario "${scenario}" "rest"
+  run_scenario "${scenario}" "rest"
 
-  # echo "⏳ Short cooldown (15s)..."
-  # sleep 15
+  echo "Short cooldown (15s)..."
+  sleep 15
 
   # Run GraphQL immediately after
   run_scenario "${scenario}" "graphql"
 
   echo ""
-  echo "🧊 Cooling down between scenario pairs (30s)..."
+  echo "Cooling down between scenario pairs (30s)..."
   sleep 30
   echo ""
 done
 
 echo ""
 echo "=========================================="
-echo "  🎉 All Paired Tests Complete!"
+echo "  All Paired Tests Complete!"
 echo "=========================================="
 echo ""
 
