@@ -9,7 +9,7 @@ import { GRAPHQL_URL, LOAD_CONFIGS, TEST_USERS, createGraphQLPayload } from '../
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 import { randomFacilityId, getTomorrowDate } from '../utils/data.js';
 
-// ===== Metrics (Aligned with REST) =====
+// ===== Metrics =====
 const successRate = new Rate('booking_success');
 const conflictRate = new Rate('booking_conflict');
 const systemFailureRate = new Rate('system_failure');
@@ -85,7 +85,6 @@ const createBookingMutation = `
       startTime
       endTime
       status
-    }
     }
   }
 `;
