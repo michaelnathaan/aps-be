@@ -32,21 +32,21 @@ function extractMetrics(data) {
   
   return {
     // Response Time
-    avgLatency: metrics.http_req_duration.values.avg,
-    p50Latency: metrics.http_req_duration.values['p(50)'],
-    p95Latency: metrics.http_req_duration.values['p(95)'],
-    p99Latency: metrics.http_req_duration.values['p(99)'],
+    avgLatency: metrics.http_req_duration.avg,
+    p50Latency: metrics.http_req_duration.med,
+    p90Latency: metrics.http_req_duration['p(90)'],
+    p95Latency: metrics.http_req_duration['p(95)'],
     
     // Throughput
-    requestsPerSec: metrics.http_reqs.values.rate,
-    totalRequests: metrics.http_reqs.values.count,
+    requestsPerSec: metrics.http_reqs.rate,
+    totalRequests: metrics.http_reqs.count,
     
     // Error Rate
-    failedRequests: metrics.http_req_failed.values.rate * 100,
+    failedRequests: metrics.http_req_failed.values * 100,
     
     // Data Transfer
-    dataReceived: metrics.data_received.values.count / (1024 * 1024),
-    dataSent: metrics.data_sent.values.count / (1024 * 1024),
+    dataReceived: metrics.data_received.count / (1024 * 1024),
+    dataSent: metrics.data_sent.count / (1024 * 1024),
   };
 }
 
@@ -80,8 +80,8 @@ function compareScenario(scenario) {
   // Response Time
   printMetric('Avg Latency (ms)', restMetrics.avgLatency, graphqlMetrics.avgLatency);
   printMetric('P50 Latency (ms)', restMetrics.p50Latency, graphqlMetrics.p50Latency);
+  printMetric('P90 Latency (ms)', restMetrics.p90Latency, graphqlMetrics.p90Latency);
   printMetric('P95 Latency (ms)', restMetrics.p95Latency, graphqlMetrics.p95Latency);
-  printMetric('P99 Latency (ms)', restMetrics.p99Latency, graphqlMetrics.p99Latency);
   
   console.log('-'.repeat(80));
   
