@@ -58,6 +58,6 @@ export default function () {
 
 export function handleSummary(data) {
   return {
-    'results/graphql/01-simple-list.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/01-simple-list.json': JSON.stringify(data, null, 2),
   };
 }
