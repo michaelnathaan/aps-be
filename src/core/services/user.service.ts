@@ -75,7 +75,7 @@ export class UserService {
 
         const [stats, bookings] = await Promise.all([
             bookingsQueries.getUserDashboardStats(userId),
-            bookingsQueries.findByUserIdPaginated(userId, limit, offset),
+            bookingsQueries.findByUserIdPaginatedWithFacility(userId, limit, offset),,
         ]);
 
         return {

@@ -252,6 +252,65 @@ export const bookingsQueries = {
     return result.rows;
   },
 
+  async findByUserIdPaginatedLean(
+    userId: number,
+    limit: number,
+    offset: number
+  ): Promise<Booking[]> {
+    const sql = `
+      SELECT 
+        id,
+        user_id as "userId",
+        facility_id as "facilityId",
+        booking_date as "bookingDate",
+        start_time as "startTime",
+        end_time as "endTime",
+        status,
+        total_price as "totalPrice"
+      FROM bookings
+      WHERE user_id = $1
+      ORDER BY booking_date DESC, start_time DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const result = await query<Booking>(sql, [userId, limit, offset]);
+    return result.rows;
+  },
+
+  async findByUserIdPaginatedWithFacility(
+    userId: number,
+    limit: number,
+    offset: number
+  ): Promise<any[]> {
+    const sql = `
+      SELECT 
+        b.id,
+        b.user_id as "userId",
+        b.facility_id as "facilityId",
+        b.booking_date as "bookingDate",
+        b.start_time as "startTime",
+        b.end_time as "endTime",
+        b.status,
+        b.total_price as "totalPrice",
+
+        -- Still join Facility (REST needs this data immediately)
+        json_build_object(
+          'id', f.id,
+          'name', f.name,
+          'pricePerHour', f.price_per_hour
+        ) as facility
+
+      FROM bookings b
+      JOIN facilities f ON b.facility_id = f.id
+      WHERE b.user_id = $1
+      ORDER BY b.booking_date DESC, b.start_time DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const result = await query(sql, [userId, limit, offset]);
+    return result.rows;
+  },
+
   async checkConflict(
     facilityId: number,
     bookingDate: Date,

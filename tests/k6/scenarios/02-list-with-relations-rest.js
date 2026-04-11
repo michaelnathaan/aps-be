@@ -34,18 +34,35 @@ export default function (data) {
     `${REST_BASE_URL}/users/${userToken.userId}/bookings?limit=10&offset=0`,
     { headers: authHeaders(userToken.token) }
   );
+
+  const safeParse = (body) => {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return null;
+    }
+  };
   
+  const body = safeParse(response.body);
+  // const success = check(response, {
+  //   'status is 200': (r) => r.status === 200,
+  //   'is array': (r) => Array.isArray(JSON.parse(r.body)),
+  //   'has nested user': (r) => {
+  //     const bookings = JSON.parse(r.body);
+  //     return bookings.length === 0 || bookings[0].user !== undefined;
+  //   },
+  //   'has nested facility': (r) => {
+  //     const bookings = JSON.parse(r.body);
+  //     return bookings.length === 0 || bookings[0].facility !== undefined;
+  //   },
+  // });
+
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
-    'is array': (r) => Array.isArray(JSON.parse(r.body)),
-    'has nested user': (r) => {
-      const bookings = JSON.parse(r.body);
-      return bookings.length === 0 || bookings[0].user !== undefined;
-    },
-    'has nested facility': (r) => {
-      const bookings = JSON.parse(r.body);
-      return bookings.length === 0 || bookings[0].facility !== undefined;
-    },
+    'valid JSON': () => body !== null,
+    'is array': () => Array.isArray(body),
+    'has nested user': () => body.length === 0 || body[0].user !== undefined,
+    'has nested facility': () => body.length === 0 || body[0].facility !== undefined,
   });
   
   if (success) {

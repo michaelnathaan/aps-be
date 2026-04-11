@@ -97,6 +97,10 @@ export class BookingService {
     return await bookingsQueries.findByUserIdPaginated(userId, limit, offset);
   }
 
+  async getUserBookingsPaginatedLean(userId: number, limit: number, offset: number) {
+    return await bookingsQueries.findByUserIdPaginatedLean(userId, limit, offset);
+  }
+
   async confirmBooking(id: number): Promise<Booking> {
     const booking = await this.getBookingById(id);
 

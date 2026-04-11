@@ -7,7 +7,7 @@
  */
 
 import http from 'k6/http';
-import { sleep } from 'k6';
+import { sleep, check, fail } from 'k6';
 import { Rate, Counter } from 'k6/metrics';
 import {
   GRAPHQL_URL,
@@ -97,7 +97,12 @@ export default function (data) {
 
   const body = JSON.parse(res.body);
 
-  if(!body.errors) {
+  const successStatus = check(res, {
+    'status is 200': (r) => r.status === 200,
+    'no graphql errors': (r) => !body.errors, // TAMBAHKAN INI
+  });
+
+  if(successStatus) {
     bookingsCreated.add(1);
     successRate.add(1);
     conflictRate.add(0);
@@ -136,6 +141,8 @@ export default function (data) {
       if (__ITER < 50) {
         console.error(`[GQL ERROR] Code: ${errorCode} | Msg: ${body.errors[0].message}`);
       }
+
+      fail(`GQL System Failure: ${errorCode}`);
     }
   }
 
