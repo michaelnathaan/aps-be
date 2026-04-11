@@ -63,7 +63,7 @@ export const queryResolvers = {
         });
       }
 
-      return await bookingService.getUserBookingsPaginated(userId, limit, offset);
+      return await bookingService.getUserBookingsPaginatedLean(userId, limit, offset);;
     },
 
     userDashboard: async (
