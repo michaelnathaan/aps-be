@@ -13,7 +13,7 @@ export function randomFacilityId() {
 // Generate future date (within 3-day limit)
 export function generateFutureDate() {
   const today = new Date();
-  const daysAhead = Math.floor(Math.random() * 3) + 1; // 1-3 days
+  const daysAhead = Math.floor(Math.random() * 7) + 1; // 1-3 days
   const futureDate = new Date(today);
   futureDate.setDate(today.getDate() + daysAhead);
   
