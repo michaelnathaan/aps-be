@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import { errorHandler } from './middleware/error-handler';
 
 import authRoutes from './routes/auth.routes';
-import { requestLogger } from './middleware/logger.middleware';
 import facilitiesRoutes from './routes/facilities.routes';
 import bookingsRoutes from './routes/bookings.routes';
 import usersRoutes from './routes/users.routes';
@@ -26,7 +25,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(requestLogger);
+// app.use(requestLogger);
 
 app.get('/health', (_req, res) => {
     res.json({
@@ -53,8 +52,8 @@ app.use(errorHandler);
 
 if (require.main === module) {
     app.listen(PORT, () => {
-        logger.info(`🚀 REST API running on http://localhost:${PORT}`);
-        logger.info(`📊 Health check: http://localhost:${PORT}/health`);
+        logger.info(`REST API running on http://localhost:${PORT}`);
+        logger.info(`Health check: http://localhost:${PORT}/health`);
     });
 }
 

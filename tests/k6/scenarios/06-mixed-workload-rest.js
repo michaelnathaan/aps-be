@@ -7,7 +7,7 @@
 import http, { setResponseCallback, expectedStatuses } from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate } from 'k6/metrics';
-import { REST_BASE_URL, LOAD_CONFIGS, TEST_USERS } from '../config/rest.config.js';
+import { REST_BASE_URL, LOAD_CONFIGS, TEST_USERS } from '../config/config.js';
 import { getRESTToken, authHeaders } from '../utils/auth.js';
 import { randomFacilityId, getTomorrowDate } from '../utils/data.js';
 

@@ -15,7 +15,7 @@ import {
   TEST_USERS,
   ADMIN_USER,
   createGraphQLPayload
-} from '../config/graphql.config.js';
+} from '../config/config.js';
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 import { randomFacilityId, generateFutureDate } from '../utils/data.js';
 
@@ -65,7 +65,7 @@ export function setup() {
     token: getGraphQLToken(GRAPHQL_URL, user.phoneNumber),
   }));
   const adminToken = getGraphQLToken(GRAPHQL_URL, ADMIN_USER.phoneNumber);
-  return { tokens , adminToken };
+  return { tokens, adminToken };
 }
 
 export default function (data) {
@@ -102,7 +102,7 @@ export default function (data) {
     'no graphql errors': (r) => !body.errors, // TAMBAHKAN INI
   });
 
-  if(successStatus) {
+  if (successStatus) {
     bookingsCreated.add(1);
     successRate.add(1);
     conflictRate.add(0);
@@ -137,7 +137,7 @@ export default function (data) {
       successRate.add(0);
       conflictRate.add(0);
       systemFailureRate.add(1);
-      
+
       if (__ITER < 50) {
         console.error(`[GQL ERROR] Code: ${errorCode} | Msg: ${body.errors[0].message}`);
       }

@@ -20,7 +20,7 @@ function loadResults(api, scenario) {
   const filePath = path.join(__dirname, `../tests/results/${api}/${scenario}-summary.json`);
   
   if (!fs.existsSync(filePath)) {
-    console.error(`❌ File not found: ${filePath}`);
+    console.error(`File not found: ${filePath}`);
     return null;
   }
   
@@ -91,7 +91,7 @@ function compareScenario(scenario) {
   const graphqlRes = loadResources('graphql', scenario.id);
 
   if (!restData || !graphqlData || !restRes || !graphqlRes) {
-    console.log('❌ Missing data for this scenario\n');
+    console.log('Missing data for this scenario\n');
     return null;
   }
   
@@ -99,7 +99,7 @@ function compareScenario(scenario) {
   const graphqlMetrics = extractMetrics(graphqlData);
   
   // Print comparison table
-  console.log('\n📊 Performance Metrics:');
+  console.log('\nPerformance Metrics:');
   console.log('-'.repeat(80));
   console.log(
     'Metric'.padEnd(25) + 
@@ -129,14 +129,14 @@ function compareScenario(scenario) {
   console.log('-'.repeat(80));
   
   // Resource
-  console.log('\n🖥️  Resource Utilization:');
+  console.log('\nResource Utilization:');
   console.log('-'.repeat(80));
 
   printMetric('Avg CPU Usage (%)', restRes.avgCpu, graphqlRes.avgCpu);
   printMetric('Avg Memory Usage (%)', restRes.avgMem, graphqlRes.avgMem);
   
   // Network and data
-  console.log('\n📦 Network & Data:');
+  console.log('\nNetwork & Data:');
   console.log('-'.repeat(80));
   printMetric('Data Received (MB)', restMetrics.dataReceived, graphqlMetrics.dataReceived);
   printMetric('Data Sent (MB)', restMetrics.dataSent, graphqlMetrics.dataSent);
@@ -277,7 +277,7 @@ Object.keys(allResults).forEach(scenarioId => {
   else winners.data.gql++;
 });
 
-console.log(`\n🏆 Category Winners (Scenarios Won):`);
+console.log(`\nCategory Winners (Scenarios Won):`);
 console.log('-'.repeat(40));
 console.log(`Latency (P95):      REST: ${winners.latency.rest} | GraphQL: ${winners.latency.gql}`);
 console.log(`Throughput:         REST: ${winners.throughput.rest} | GraphQL: ${winners.throughput.gql}`);
@@ -289,29 +289,11 @@ console.log('\n' + '='.repeat(80));
 console.log('FINAL VERDICT & RESEARCH CONCLUSION');
 console.log('='.repeat(80));
 
-// 1. Performance vs. Efficiency Trade-off
-if (winners.latency.rest > winners.latency.gql && winners.data.gql > winners.data.rest) {
-  console.log('💡 THE ARCHITECTURAL TRADE-OFF:');
-  console.log('   REST exhibits lower computational overhead and faster response times,');
-  console.log('   while GraphQL provides superior network efficiency by eliminating over-fetching.');
-  console.log('   This confirms the "Efficiency-Latency Paradox" in middleware architecture.');
-}
-
-// 2. Performance Impact (Latency & Throughput)
-console.log('\n📈 SCALABILITY & CAPACITY:');
-if (winners.throughput.rest >= winners.throughput.gql) {
-  console.log(`   • REST maintained higher throughput in ${winners.throughput.rest} scenarios.`);
-  console.log('   • This suggests REST is more capable of handling high-volume traffic on limited hardware.');
-} else {
-  console.log(`   • GraphQL maintained higher throughput in ${winners.throughput.gql} scenarios.`);
-  console.log('   • This suggests the GraphQL implementation scales better under the tested load.');
-}
-
-// 3. Resource Impact (CPU & Memory)
+// 1. Resource Impact (CPU & Memory)
 const totalResRest = winners.cpu.rest + winners.memory.rest;
 const totalResGql = winners.cpu.gql + winners.memory.gql;
 
-console.log('\n📊 SYSTEM RESOURCE SUMMARY:');
+console.log('\nSYSTEM RESOURCE SUMMARY:');
 if (totalResRest > totalResGql) {
   console.log('   • GraphQL is more resource-efficient overall, making it suitable for');
   console.log('     serverless or memory-constrained environments.');
@@ -320,8 +302,8 @@ if (totalResRest > totalResGql) {
   console.log('     and validation layer introduces measurable CPU/RAM overhead.');
 }
 
-// 4. Deployment Recommendation
-console.log('\n🚀 RECOMMENDATIONS FOR APS (Apartment Booking System):');
+// 2. Deployment Recommendation
+console.log('\nRECOMMENDATIONS FOR APS (Apartment Booking System):');
 if (winners.latency.rest > 3) { // If REST won most latency tests
   console.log('   • Use REST for: High-frequency, simple operations (e.g., health checks, logging)');
   console.log('     where every millisecond of server-side latency counts.');
@@ -333,10 +315,3 @@ if (winners.data.gql > 3) { // If GraphQL won most data tests
               ((allResults['04-nested-dashboard'].rest.dataReceived - allResults['04-nested-dashboard'].graphql.dataReceived) / allResults['04-nested-dashboard'].rest.dataReceived * 100).toFixed(0) + 
               '%) is the priority.');
 }
-
-console.log('\n' + '-'.repeat(80));
-console.log('✅ Final Conclusion:');
-console.log('   "This study concludes that while REST remains the benchmark for raw speed,');
-console.log('   GraphQL serves as a vital optimization layer for complex data-driven');
-console.log('   applications, particularly in scenarios involving nested relationships."');
-console.log('-'.repeat(80));

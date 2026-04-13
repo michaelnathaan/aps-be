@@ -7,7 +7,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
-import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS } from '../config/rest.config.js';
+import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS } from '../config/config.js';
 import { getRESTToken, authHeaders } from '../utils/auth.js';
 
 const bookingsRetrieved = new Counter('bookings_retrieved');

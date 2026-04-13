@@ -4,8 +4,9 @@
  */
 
 export const GRAPHQL_URL = __ENV.GRAPHQL_URL || 'http://localhost:3002/graphql';
+export const REST_BASE_URL = __ENV.REST_URL || 'http://localhost:3001/api';
 
-// Same test users as REST
+// Test user credentials (from seed data)
 export const TEST_USERS = [
   { phoneNumber: '+6281234567892', role: 'tenant', userId: 3 },
   { phoneNumber: '+6281234567893', role: 'tenant', userId: 4 },
@@ -140,8 +141,9 @@ export const TEST_USERS = [
 ];
 
 export const ADMIN_USER = { phoneNumber: '+6281234567891', role: 'admin', userId: 2 }; 
-// Identical load configurations
+// Load test configurations (as per research paper)
 export const LOAD_CONFIGS = {
+  // Scenario 1-4: Read operations
   read: {
     stages: [
       { duration: '1m', target: 100 },  // 1. WARM-UP: Get to 100 VUs
@@ -149,6 +151,8 @@ export const LOAD_CONFIGS = {
       { duration: '1m', target: 0 },    // 3. COOL-DOWN: Let the server recover
     ],
   },
+
+  // Scenario 5: Write operations (lower load to prevent conflicts)
   write: {
     stages: [
       { duration: '1m', target: 100 },  // 1. WARM-UP: Get to 100 VUs
@@ -156,6 +160,8 @@ export const LOAD_CONFIGS = {
       { duration: '1m', target: 0 },    // 3. COOL-DOWN: Let the server recover
     ],
   },
+
+  // Scenario 6: Mixed workload
   mixed: {
     stages: [
       { duration: '1m', target: 100 },  // 1. WARM-UP: Get to 100 VUs
@@ -165,7 +171,6 @@ export const LOAD_CONFIGS = {
   },
 };
 
-// Same thresholds as REST
 export const THRESHOLDS = {
   'http_req_duration': ['p(50)<500', 'p(95)<1000', 'p(99)<2000'],
   'http_reqs': ['rate>30'],  // At least 30 req/sec

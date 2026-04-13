@@ -5,7 +5,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate } from 'k6/metrics';
-import { GRAPHQL_URL, LOAD_CONFIGS, TEST_USERS, createGraphQLPayload } from '../config/graphql.config.js';
+import { GRAPHQL_URL, LOAD_CONFIGS, TEST_USERS, createGraphQLPayload } from '../config/config.js';
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 import { randomFacilityId, getTomorrowDate } from '../utils/data.js';
 

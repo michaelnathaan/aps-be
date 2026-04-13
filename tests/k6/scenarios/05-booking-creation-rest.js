@@ -5,7 +5,7 @@
 
 import http from 'k6/http';
 import { sleep } from 'k6';
-import { REST_BASE_URL, LOAD_CONFIGS, TEST_USERS , ADMIN_USER} from '../config/rest.config.js';
+import { REST_BASE_URL, LOAD_CONFIGS, TEST_USERS , ADMIN_USER} from '../config/config.js';
 import { getRESTToken, authHeaders } from '../utils/auth.js';
 import { randomFacilityId, generateFutureDate } from '../utils/data.js';
 import { Rate, Counter } from 'k6/metrics';
