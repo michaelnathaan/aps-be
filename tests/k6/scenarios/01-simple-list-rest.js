@@ -7,7 +7,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
-import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS, HTTP_OPTIONS } from '../config/rest.config.js';
+import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS, HTTP_OPTIONS } from '../config/config.js';
 
 // Custom metrics
 const facilityCount = new Counter('facility_count');

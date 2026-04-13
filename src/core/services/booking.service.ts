@@ -61,16 +61,30 @@ export class BookingService {
 
     const totalPrice = await this.calculatePrice(userId, facility.pricePerHour, startTime, endTime);
 
-    const booking = await bookingsQueries.create({
-      userId,
-      facilityId,
-      bookingDate,
-      startTime,
-      endTime,
-      totalPrice
-    });
-
-    return booking;
+    try {
+      const booking = await bookingsQueries.create({
+        userId,
+        facilityId,
+        bookingDate,
+        startTime,
+        endTime,
+        totalPrice
+      });
+      return booking;
+    } catch (error: any) {
+      if (
+        error.code === '23505' && // PostgreSQL unique violation
+        error.constraint === 'idx_bookings_conflict_prevention'
+      ) {
+        const dateStr = bookingDate.toISOString().split('T')[0];
+        throw new BookingConflictError(
+          `facility ${facilityId}`,
+          dateStr,
+          `${startTime}-${endTime}`
+        );
+      }
+      throw error;
+    }
   }
 
   async getBookingById(id: number): Promise<Booking> {
