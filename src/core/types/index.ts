@@ -65,6 +65,31 @@ export interface BookingWithDetails extends Booking {
   facility: Facility;
 }
 
+export interface BookingRow {
+  id: number;
+  userId: number;
+  facilityId: number;
+  bookingDate: Date;
+  startTime: string;
+  endTime: string;
+  status: BookingStatus;
+  totalPrice: number;
+
+  user_id: number;
+  user_fullName: string;
+  user_phoneNumber: string;
+  user_role: UserRole;
+
+  facility_id: number;
+  facility_name: string;
+  facility_description: string | null;
+  facility_pricePerHour: number;
+  facility_openTime: string;
+  facility_closeTime: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export interface UserDashboard {
   user: User;
   bookings: BookingWithDetails[];
@@ -119,7 +144,7 @@ export interface AuthPayload {
 
 export interface LoginDTO {
   phoneNumber: string;
-  password?: string; 
+  password?: string;
 }
 
 export interface AuthResponse {

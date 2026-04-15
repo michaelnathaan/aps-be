@@ -53,6 +53,6 @@ export default function (data) {
 
 export function handleSummary(data) {
   return {
-    'tests/results/rest/04-nested-dashboard.json': JSON.stringify(data, null, 2),
+    'tests/results/rest/05-optimized-nested-query.json': JSON.stringify(data, null, 2),
   };
 }
