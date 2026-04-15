@@ -49,7 +49,14 @@ export const queryResolvers = {
 
       return await bookingService.getUserBookingsPaginated(userId, limit, offset);
     },
-
+    userBookingsGeneric: async (
+      _: any,
+      { userId, limit, offset }: { userId: number; limit: number; offset: number },
+      context: GraphQLContext
+    ) => {
+      requireAuth(context);
+      return await bookingService.getUserBookingsPaginatedPlain(userId, limit, offset);
+    },
     userDashboard: async (
       _: any,
       { userId, limit, offset }: { userId: number; limit: number; offset: number },

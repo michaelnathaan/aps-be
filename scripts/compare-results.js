@@ -9,11 +9,11 @@ const path = require('path');
 
 const SCENARIOS = [
   { id: '01-simple-list', name: 'Simple List Query' },
-  { id: '02-list-with-relations', name: 'List with Relations (N+1 Test)' },
+  { id: '02-list-with-relations', name: 'List with Relations' },
   { id: '03-filtered-slots', name: 'Filtered Slot Availability' },
-  { id: '04-nested-dashboard', name: 'Nested User Dashboard' },
-  { id: '05-booking-creation', name: 'Booking Creation (Write)' },
-  { id: '06-mixed-workload', name: 'Mixed Read-Write Workload' },
+  { id: '04-generic-nested-query', name: 'Generic Nested User Dashboard' },
+  { id: '05-optimized-nested-query', name: 'Optimized Nested User Dashboard' },
+  { id: '06-booking-creation', name: 'Booking Creation (Write)' },
 ];
 
 function loadResults(api, scenario) {
@@ -307,11 +307,4 @@ console.log('\nRECOMMENDATIONS FOR APS (Apartment Booking System):');
 if (winners.latency.rest > 3) { // If REST won most latency tests
   console.log('   • Use REST for: High-frequency, simple operations (e.g., health checks, logging)');
   console.log('     where every millisecond of server-side latency counts.');
-}
-
-if (winners.data.gql > 3) { // If GraphQL won most data tests
-  console.log('   • Use GraphQL for: Mobile clients and complex "Nested User Dashboards"');
-  console.log('     where reducing data consumption (average -' + 
-              ((allResults['04-nested-dashboard'].rest.dataReceived - allResults['04-nested-dashboard'].graphql.dataReceived) / allResults['04-nested-dashboard'].rest.dataReceived * 100).toFixed(0) + 
-              '%) is the priority.');
 }

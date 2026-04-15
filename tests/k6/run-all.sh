@@ -16,9 +16,9 @@ SCENARIOS=(
   "01-simple-list"
   "02-list-with-relations"
   "03-filtered-slots"
-  "04-nested-dashboard"
-  "05-booking-creation"
-  "06-mixed-workload"
+  "04-generic-nested-query"
+  "05-optimized-nested-query"
+  "06-booking-creation"
 )
 
 run_scenario() {
@@ -30,11 +30,11 @@ run_scenario() {
   echo "=========================================="
   echo ""
 
-  if [[ "$scenario" == "05-booking-creation" || "$scenario" == "06-mixed-workload" ]]; then
+  if [[ "$scenario" == "06-booking-creation" ]]; then
     echo "🧹 Pre-test Cleanup: Wiping test data..."
     # Use TRUNCATE for Condition 1, or the DELETE query for Condition 2
-    # docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "DELETE FROM bookings WHERE booking_date >= CURRENT_DATE;"
-    docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "TRUNCATE bookings RESTART IDENTITY;"
+    docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "DELETE FROM bookings WHERE booking_date >= CURRENT_DATE;"
+    # docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "TRUNCATE bookings RESTART IDENTITY;"
   fi
   
   ./scripts/monitor-resources.sh 300 "tests/results/${api}/${scenario}-resources.csv" "aps-${api}-api" &

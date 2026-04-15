@@ -108,11 +108,52 @@ export class BookingService {
     limit: number,
     offset: number
   ): Promise<BookingWithDetails[]> {
-    return await bookingsQueries.findByUserIdPaginated(userId, limit, offset);
+
+    const rows = await bookingsQueries.findByUserIdPaginated(userId, limit, offset);
+
+    return rows.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      facilityId: row.facilityId,
+      bookingDate: row.bookingDate,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      status: row.status,
+      totalPrice: row.totalPrice,
+
+      user: {
+        id: row.user_id,
+        fullName: row.user_fullName,
+        phoneNumber: row.user_phoneNumber,
+        role: row.user_role,
+        isVerifiedTenant: false, // or fetch if needed
+        unitNumber: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+
+      facility: {
+        id: row.facility_id,
+        name: row.facility_name,
+        description: row.facility_description,
+        pricePerHour: row.facility_pricePerHour,
+        openTime: row.facility_openTime,
+        closeTime: row.facility_closeTime,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    }) as BookingWithDetails);
   }
 
-  async getUserBookingsPaginatedLean(userId: number, limit: number, offset: number) {
-    return await bookingsQueries.findByUserIdPaginatedLean(userId, limit, offset);
+  async getUserBookingsPaginatedPlain(
+    userId: number,
+    limit: number,
+    offset: number
+  ): Promise<Booking[]> {
+    const results = await bookingsQueries.findByUserIdPaginatedPlain(userId, limit, offset);
+    console.log('plain booking keys:', Object.keys(results[0] ?? {})); // should NOT have 'facility'
+    return results;
   }
 
   async confirmBooking(id: number): Promise<Booking> {

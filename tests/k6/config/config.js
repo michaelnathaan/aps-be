@@ -152,17 +152,8 @@ export const LOAD_CONFIGS = {
     ],
   },
 
-  // Scenario 5: Write operations (lower load to prevent conflicts)
+  // Scenario 5: Write operations 
   write: {
-    stages: [
-      { duration: '1m', target: 100 },  // 1. WARM-UP: Get to 100 VUs
-      { duration: '3m', target: 100 },  // 2. PLATEAU: Sustained 100 VU Stress
-      { duration: '1m', target: 0 },    // 3. COOL-DOWN: Let the server recover
-    ],
-  },
-
-  // Scenario 6: Mixed workload
-  mixed: {
     stages: [
       { duration: '1m', target: 100 },  // 1. WARM-UP: Get to 100 VUs
       { duration: '3m', target: 100 },  // 2. PLATEAU: Sustained 100 VU Stress

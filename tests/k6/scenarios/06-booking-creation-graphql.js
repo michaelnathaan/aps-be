@@ -152,6 +152,6 @@ export default function (data) {
 // ✅ Summary
 export function handleSummary(data) {
   return {
-    'tests/results/graphql/05-booking-creation.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/06-booking-creation.json': JSON.stringify(data, null, 2),
   };
 }
