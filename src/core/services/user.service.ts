@@ -2,7 +2,7 @@ import { User, UserDashboard, LoginDTO, CreateUserDTO, UpdateUserDTO, OTPSession
 import { ConflictError, NotFoundError, UnauthorizedError } from '../../core/errors/custom-errors';
 import { usersQueries } from '../../db/queries/users.queries';
 import { bookingsQueries } from '../../db/queries/bookings.queries';
-import jwt, { SignOptions } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { otpService } from './otp.service';
 
 /**
