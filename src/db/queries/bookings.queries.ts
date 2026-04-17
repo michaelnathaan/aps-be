@@ -1,5 +1,5 @@
 import { query } from '../client';
-import { Booking, BookingWithDetails, BookingStatus } from '../../core/types';
+import { Booking, BookingWithDetails, BookingStatus, BookingRow } from '../../core/types';
 
 export const bookingsQueries = {
   async findAll(): Promise<Booking[]> {
@@ -129,54 +129,6 @@ export const bookingsQueries = {
     return result.rows[0] || null;
   },
 
-  // async findByUserId(userId: number): Promise<BookingWithDetails[]> {
-  //   const sql = `
-  //     SELECT 
-  //       b.id,
-  //       b.user_id as "userId",
-  //       b.facility_id as "facilityId",
-  //       b.booking_date as "bookingDate",
-  //       b.start_time as "startTime",
-  //       b.end_time as "endTime",
-  //       b.status,
-  //       b.total_price as "totalPrice",
-  //       b.created_at as "createdAt",
-  //       b.updated_at as "updatedAt",
-        
-  //       json_build_object(
-  //         'id', u.id,
-  //         'fullName', u.full_name,
-  //         'phoneNumber', u.phone_number,
-  //         'role', u.role,
-  //         'isVerifiedTenant', u.is_verified_tenant,
-  //         'unitNumber', u.unit_number,
-  //         'createdAt', u.created_at,
-  //         'updatedAt', u.updated_at
-  //       ) as user,
-        
-  //       json_build_object(
-  //         'id', f.id,
-  //         'name', f.name,
-  //         'description', f.description,
-  //         'pricePerHour', f.price_per_hour,
-  //         'openTime', f.open_time,
-  //         'closeTime', f.close_time,
-  //         'isActive', f.is_active,
-  //         'createdAt', f.created_at,
-  //         'updatedAt', f.updated_at
-  //       ) as facility
-        
-  //     FROM bookings b
-  //     JOIN users u ON b.user_id = u.id
-  //     JOIN facilities f ON b.facility_id = f.id
-  //     WHERE b.user_id = $1
-  //     ORDER BY b.booking_date DESC, b.start_time DESC
-  //   `;
-
-  //   const result = await query<BookingWithDetails>(sql, [userId]);
-  //   return result.rows;
-  // },
-
   async getUserDashboardStats(userId: number): Promise<{
     bookingCountToday: number;
     upcomingBookings: number;
@@ -206,11 +158,88 @@ export const bookingsQueries = {
     return result.rows[0];
   },
 
+  async findByUserIdPaginatedWithFacility(
+    userId: number,
+    limit: number,
+    offset: number
+  ): Promise<any[]> {
+    const sql = `
+      SELECT 
+        b.id,
+        b.user_id as "userId",
+        b.facility_id as "facilityId",
+        b.booking_date as "bookingDate",
+        b.start_time as "startTime",
+        b.end_time as "endTime",
+        b.status,
+        b.total_price as "totalPrice",
+
+        -- Still join Facility (REST needs this data immediately)
+        json_build_object(
+          'id', f.id,
+          'name', f.name,
+          'pricePerHour', f.price_per_hour
+        ) as facility
+
+      FROM bookings b
+      JOIN facilities f ON b.facility_id = f.id
+      WHERE b.user_id = $1
+      ORDER BY b.booking_date DESC, b.start_time DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const result = await query(sql, [userId, limit, offset]);
+    return result.rows;
+  },
+
+
   async findByUserIdPaginated(
     userId: number,
     limit: number,
     offset: number
-  ): Promise<BookingWithDetails[]> {
+  ): Promise<BookingRow[]> {
+    const sql = `
+    SELECT 
+  b.id,
+  b.user_id as "userId",
+  b.facility_id as "facilityId",
+  b.booking_date as "bookingDate",
+  b.start_time as "startTime",
+  b.end_time as "endTime",
+  b.status,
+  b.total_price as "totalPrice",
+
+  -- user (flattened)
+  u.id as "user_id",
+  u.full_name as "user_fullName",
+  u.phone_number as "user_phoneNumber",
+  u.role as "user_role",
+
+  -- facility (flattened)
+  f.id as "facility_id",
+  f.name as "facility_name",
+  f.description as "facility_description",
+  f.price_per_hour as "facility_pricePerHour",
+  f.open_time as "facility_openTime",
+  f.close_time as "facility_closeTime"
+
+FROM bookings b
+JOIN users u ON b.user_id = u.id
+JOIN facilities f ON b.facility_id = f.id
+WHERE b.user_id = $1
+ORDER BY b.booking_date DESC, b.start_time DESC
+LIMIT $2 OFFSET $3
+  `;
+
+    const result = await query<BookingRow>(sql, [userId, limit, offset]);
+    return result.rows;
+  },
+
+  async findByUserIdPaginatedPlain(
+    userId: number,
+    limit: number,
+    offset: number
+  ): Promise<Booking[]> {
     const sql = `
     SELECT 
       b.id,
@@ -220,35 +249,13 @@ export const bookingsQueries = {
       b.start_time as "startTime",
       b.end_time as "endTime",
       b.status,
-      b.total_price as "totalPrice",
-
-      -- Only required user fields
-      json_build_object(
-        'id', u.id,
-        'fullName', u.full_name,
-        'phoneNumber', u.phone_number,
-        'role', u.role
-      ) as user,
-
-      -- Only required facility fields
-      json_build_object(
-        'id', f.id,
-        'name', f.name,
-        'description', f.description,
-        'pricePerHour', f.price_per_hour,
-        'openTime', f.open_time,
-        'closeTime', f.close_time
-      ) as facility
-
+      b.total_price as "totalPrice"
     FROM bookings b
-    JOIN users u ON b.user_id = u.id
-    JOIN facilities f ON b.facility_id = f.id
     WHERE b.user_id = $1
     ORDER BY b.booking_date DESC, b.start_time DESC
     LIMIT $2 OFFSET $3
   `;
-
-    const result = await query<BookingWithDetails>(sql, [userId, limit, offset]);
+    const result = await query<Booking>(sql, [userId, limit, offset]);
     return result.rows;
   },
 

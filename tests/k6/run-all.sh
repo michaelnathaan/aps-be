@@ -16,9 +16,9 @@ SCENARIOS=(
   "01-simple-list"
   "02-list-with-relations"
   "03-filtered-slots"
-  "04-nested-dashboard"
-  "05-booking-creation"
-  "06-mixed-workload"
+  "04-generic-nested-query"
+  "05-optimized-nested-query"
+  "06-booking-creation"
 )
 
 run_scenario() {
@@ -29,6 +29,13 @@ run_scenario() {
   echo "📊 Scenario: ${scenario} (${api})"
   echo "=========================================="
   echo ""
+
+  if [[ "$scenario" == "06-booking-creation" ]]; then
+    echo "🧹 Pre-test Cleanup: Wiping test data..."
+    # Use TRUNCATE for Condition 1, or the DELETE query for Condition 2
+    docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "DELETE FROM bookings WHERE booking_date >= CURRENT_DATE;"
+    # docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "TRUNCATE bookings RESTART IDENTITY;"
+  fi
   
   ./scripts/monitor-resources.sh 300 "tests/results/${api}/${scenario}-resources.csv" "aps-${api}-api" &
   MONITOR_PID=$!
@@ -57,14 +64,14 @@ for scenario in "${SCENARIOS[@]}"; do
   run_scenario "${scenario}" "rest"
 
   echo "Short cooldown (15s)..."
-  sleep 15
+  sleep 30
 
   # Run GraphQL immediately after
   run_scenario "${scenario}" "graphql"
 
   echo ""
   echo "Cooling down between scenario pairs (30s)..."
-  sleep 30
+  sleep 60
   echo ""
 done
 

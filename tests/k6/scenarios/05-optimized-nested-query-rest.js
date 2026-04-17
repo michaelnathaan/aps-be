@@ -7,7 +7,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
-import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS } from '../config/rest.config.js';
+import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS } from '../config/config.js';
 import { getRESTToken, authHeaders } from '../utils/auth.js';
 
 // Custom metrics
@@ -53,6 +53,6 @@ export default function (data) {
 
 export function handleSummary(data) {
   return {
-    'tests/results/rest/04-nested-dashboard.json': JSON.stringify(data, null, 2),
+    'tests/results/rest/05-optimized-nested-query.json': JSON.stringify(data, null, 2),
   };
 }

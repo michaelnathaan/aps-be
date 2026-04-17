@@ -26,7 +26,7 @@ export function createUserLoader(): DataLoader<number, User | null> {
     },
     {
       cache: true,
-      batchScheduleFn: (callback) => setTimeout(callback, 10)
+      batchScheduleFn: (callback) => process.nextTick(callback)
     }
   );
 }
@@ -47,7 +47,7 @@ export function createFacilityLoader(): DataLoader<number, Facility | null> {
     },
     {
       cache: true,
-      batchScheduleFn: (callback) => setTimeout(callback, 10)
+      batchScheduleFn: (callback) => process.nextTick(callback)
     }
   );
 }

@@ -16,15 +16,6 @@ export class UserService {
     //         ? Number(process.env.JWT_EXPIRES_IN)
     //         : 60 * 60 * 24 * 7;
 
-
-    async getUserById(id: number): Promise<User> {
-        const user = await usersQueries.findById(id);
-        if (!user) {
-            throw new NotFoundError('User', id);
-        }
-        return user;
-    }
-
     async getUsersByIds(ids: number[]): Promise<User[]> {
         return await usersQueries.findByIds(ids);
     }
@@ -79,6 +70,14 @@ export class UserService {
         }
     }
 
+    async getUserById(id: number): Promise<User> {
+        const user = await usersQueries.findById(id);
+        if (!user) {
+            throw new NotFoundError('User', id);
+        }
+        return user;
+    }
+
     /**
      * Returns:
      * - User info
@@ -96,7 +95,7 @@ export class UserService {
 
         const [stats, bookings] = await Promise.all([
             bookingsQueries.getUserDashboardStats(userId),
-            bookingsQueries.findByUserIdPaginated(userId, limit, offset),
+            bookingsQueries.findByUserIdPaginatedWithFacility(userId, limit, offset),,
         ]);
 
         return {

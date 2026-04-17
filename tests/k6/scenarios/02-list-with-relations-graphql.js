@@ -7,7 +7,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
-import { GRAPHQL_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS, createGraphQLPayload } from '../config/graphql.config.js';
+import { GRAPHQL_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS, createGraphQLPayload } from '../config/config.js';
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 
 // Custom metrics
@@ -22,7 +22,7 @@ export const options = {
 
 const query = `
   query GetUserBookings($userId: Int!, $limit: Int!, $offset: Int!) {
-    userBookings(userId: $userId, limit: $limit, offset: $offset) {
+    userBookingsGeneric(userId: $userId, limit: $limit, offset: $offset) {
       id
       bookingDate
       startTime
@@ -82,19 +82,19 @@ export default function (data) {
     'status is 200': (r) => r.status === 200,
     'valid JSON': () => parsed !== null,
     'no errors': () => parsed && !parsed.errors,
-    'is array': () => parsed && Array.isArray(parsed.data?.userBookings),
+    'is array': () => parsed && Array.isArray(parsed.data?.userBookingsGeneric),
     'has nested user': () => {
-      const bookings = parsed?.data?.userBookings || [];
+      const bookings = parsed?.data?.userBookingsGeneric || [];
       return bookings.length === 0 || bookings[0].user !== null;
     },
     'has nested facility': () => {
-      const bookings = parsed?.data?.userBookings || [];
+      const bookings = parsed?.data?.userBookingsGeneric || [];
       return bookings.length === 0 || bookings[0].facility !== null;
     },
   });
 
-  if (success && parsed?.data?.userBookings) {
-    const bookings = parsed.data.userBookings;
+  if (success && parsed?.data?.userBookingsGeneric) {
+    const bookings = parsed.data.userBookingsGeneric;
     bookingsRetrieved.add(bookings.length);
     responseSize.add(response.body.length);
     nestedObjects.add(bookings.length * 2);

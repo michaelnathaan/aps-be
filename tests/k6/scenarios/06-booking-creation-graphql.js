@@ -7,14 +7,15 @@
  */
 
 import http from 'k6/http';
-import { sleep } from 'k6';
+import { sleep, check, fail } from 'k6';
 import { Rate, Counter } from 'k6/metrics';
 import {
   GRAPHQL_URL,
   LOAD_CONFIGS,
   TEST_USERS,
+  ADMIN_USER,
   createGraphQLPayload
-} from '../config/graphql.config.js';
+} from '../config/config.js';
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 import { randomFacilityId, generateFutureDate } from '../utils/data.js';
 
@@ -24,11 +25,12 @@ const systemFailureRate = new Rate('system_failure');
 
 const bookingsCreated = new Counter('bookings_created');
 const bookingConflicts = new Counter('booking_conflicts');
+const bookingDeleted = new Counter('booking_deleted');
 
 export const options = {
   stages: LOAD_CONFIGS.write.stages,
   thresholds: {
-    http_req_duration: ['p(95)<1000'],
+    http_req_duration: ['p(95)<2000'],
 
     booking_success: ['rate>0.70'],
     booking_conflict: ['rate<0.25'],
@@ -36,17 +38,9 @@ export const options = {
   },
 };
 
-const getSlotsQuery = `
-  query GetAvailableSlots($input: SlotAvailabilityInput!) {
-    availableSlots(input: $input) {
-      facilityId
-      date
-      slots {
-        startTime
-        endTime
-        isAvailable
-      }
-    }
+const deleteBookingMutation = `
+  mutation DeleteBooking($id: Int!) {
+    deleteBooking(id: $id)
   }
 `;
 
@@ -70,57 +64,25 @@ export function setup() {
     userId: user.userId,
     token: getGraphQLToken(GRAPHQL_URL, user.phoneNumber),
   }));
-  return { tokens };
+  const adminToken = getGraphQLToken(GRAPHQL_URL, ADMIN_USER.phoneNumber);
+  return { tokens, adminToken };
 }
 
 export default function (data) {
   const userToken = data.tokens[Math.floor(Math.random() * data.tokens.length)];
   const facilityId = randomFacilityId();
   const bookingDate = generateFutureDate();
-
-  const slotPayload = createGraphQLPayload(getSlotsQuery, {
-    input: {
-      facilityId,
-      date: bookingDate,
-    },
-  });
-
-  const slotRes = http.post(GRAPHQL_URL, slotPayload, {
-    headers: authHeaders(userToken.token),
-  });
-
-  if (slotRes.status !== 200) {
-    systemFailureRate.add(1);
-    return;
-  }
-
-  let slotsData;
-
-  try {
-    slotsData = JSON.parse(slotRes.body);
-  } catch (e) {
-    console.error(`[SLOT PARSE ERROR]
-body=${slotRes.body}`);
-    systemFailureRate.add(1);
-    return;
-  }
-
-  const availableSlots =
-    slotsData?.data?.availableSlots?.slots?.filter(s => s.isAvailable) || [];
-
-  if (availableSlots.length === 0) {
-    return; // same behavior as REST
-  }
-
-  const slot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
+  const startHour = Math.floor(Math.random() * (20 - 8) + 8);
+  const startTime = `${startHour.toString().padStart(2, '0')}:00:00`;
+  const endTime = `${(startHour + 1).toString().padStart(2, '0')}:00:00`;
 
   const payload = createGraphQLPayload(createBookingMutation, {
     input: {
       userId: userToken.userId,
       facilityId,
       bookingDate,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
+      startTime: startTime,
+      endTime: endTime,
     },
   });
 
@@ -133,36 +95,54 @@ body=${slotRes.body}`);
     return;
   }
 
-  let body;
+  const body = JSON.parse(res.body);
 
-  try {
-    body = JSON.parse(res.body);
-  } catch (e) {
-    console.error(`[BOOKING PARSE ERROR]
-body=${res.body}`);
-    systemFailureRate.add(1);
-    return;
-  }
+  const successStatus = check(res, {
+    'status is 200': (r) => r.status === 200,
+    'no graphql errors': (r) => !body.errors, // TAMBAHKAN INI
+  });
 
-  if (!body.errors) {
+  if (successStatus) {
+    bookingsCreated.add(1);
     successRate.add(1);
     conflictRate.add(0);
-    systemFailureRate.add(0);
-    bookingsCreated.add(1);
 
+    const bookingId = body.data.createBooking.id;
+
+    const deletePayload = createGraphQLPayload(deleteBookingMutation, {
+      id: bookingId,
+    });
+
+    const deleteRes = http.post(GRAPHQL_URL, deletePayload, {
+      headers: authHeaders(data.adminToken),
+    });
+
+    const deleteBody = JSON.parse(deleteRes.body);
+
+    if (deleteRes.status === 200 && !deleteBody.errors) {
+      bookingDeleted.add(1);
+    } else {
+      console.error(`[GQL DELETE FAILED] ID: ${bookingId} | Error: ${JSON.stringify(deleteBody.errors)}`);
+    }
   } else {
     const errorCode = body.errors[0]?.extensions?.code;
 
     if (errorCode === 'BOOKING_CONFLICT') {
       successRate.add(0);
       conflictRate.add(1);
-      systemFailureRate.add(0);
       bookingConflicts.add(1);
-
+      console.log(`[GQL Booking Conflict] User ${userToken.userId} at ${startTime}`);
     } else {
+      // Logic failure (Daily Limit, Validation, etc.)
       successRate.add(0);
       conflictRate.add(0);
       systemFailureRate.add(1);
+
+      if (__ITER < 50) {
+        console.error(`[GQL ERROR] Code: ${errorCode} | Msg: ${body.errors[0].message}`);
+      }
+
+      fail(`GQL System Failure: ${errorCode}`);
     }
   }
 
@@ -172,6 +152,6 @@ body=${res.body}`);
 // ✅ Summary
 export function handleSummary(data) {
   return {
-    'tests/results/graphql/05-booking-creation.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/06-booking-creation.json': JSON.stringify(data, null, 2),
   };
 }

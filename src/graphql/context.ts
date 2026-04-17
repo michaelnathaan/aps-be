@@ -1,44 +1,33 @@
 import { User } from '../core/types';
 import { DataLoaders, createDataLoaders } from './dataloaders';
 import { userService } from '../core/services/user.service';
+import { GraphQLError } from 'graphql';
 
-/**
- * Available to all resolvers via the context parameter.
- * Contains:
- * - User (if authenticated)
- * - DataLoaders (for batching)
- */
 export interface GraphQLContext {
   user?: User;
   dataloaders: DataLoaders;
 }
 
-/**
- * Create GraphQL context for each request
- * 
- * Extracts JWT token from Authorization header,
- * verifies it, and attaches user to context.
- * Creates new dataloaders per request.
- */
 export async function createContext({ req }: { req: any }): Promise<GraphQLContext> {
   const dataloaders = createDataLoaders();
+  const authHeader = req.headers.authorization;
 
-  const authHeader = req.headers.authorization || '';
-
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-
-    try {
-      const user = await userService.verifyToken(token);
-
-      return {
-        user,
-        dataloaders
-      };
-    } catch (error) {
-      return { dataloaders };
-    }
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { dataloaders };
   }
 
-  return { dataloaders };
+  const token = authHeader.substring(7);
+
+  try {
+    const user = await userService.verifyToken(token);
+
+    return {
+      user,
+      dataloaders
+    };
+  } catch (error) {
+    throw new GraphQLError('Invalid or expired token', {
+      extensions: { code: 'UNAUTHENTICATED' }
+    });
+  }
 }

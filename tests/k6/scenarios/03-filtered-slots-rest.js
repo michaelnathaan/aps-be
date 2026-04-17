@@ -7,7 +7,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
-import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS } from '../config/rest.config.js';
+import { REST_BASE_URL, LOAD_CONFIGS, THRESHOLDS } from '../config/config.js';
 import { randomFacilityId, getTomorrowDate } from '../utils/data.js';
 
 // Custom metrics

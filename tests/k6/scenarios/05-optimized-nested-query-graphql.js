@@ -7,7 +7,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
-import { GRAPHQL_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS, createGraphQLPayload } from '../config/graphql.config.js';
+import { GRAPHQL_URL, LOAD_CONFIGS, THRESHOLDS, TEST_USERS, createGraphQLPayload } from '../config/config.js';
 import { getGraphQLToken, authHeaders } from '../utils/auth.js';
 
 const bookingsCount = new Trend('user_bookings_count');
@@ -73,14 +73,20 @@ export default function (data) {
     headers: authHeaders(userToken.token),
   });
 
+  const body = JSON.parse(response.body);
+
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
-    'no errors': (r) => !JSON.parse(r.body).errors,
-    'has dashboard': (r) => JSON.parse(r.body).data.userDashboard !== null,
-    'has user': (r) => JSON.parse(r.body).data.userDashboard.user !== null,
-    'has bookings': (r) => Array.isArray(JSON.parse(r.body).data.userDashboard.bookings),
+    'no errors': () => !body.errors,
+    'has data': () => body.data !== undefined && body.data !== null,
+    'has dashboard': () => body.data && body.data.userDashboard !== null,
+    'has user': () => body.data && body.data.userDashboard && body.data.userDashboard.user !== null,
+    'has bookings': () => body.data && body.data.userDashboard && Array.isArray(body.data.userDashboard.bookings),
   });
 
+  if (!body.data) {
+    console.log('BAD RESPONSE:', response.body);
+  }
   if (success) {
     const body = JSON.parse(response.body);
     const dashboard = body.data.userDashboard;
@@ -93,6 +99,6 @@ export default function (data) {
 
 export function handleSummary(data) {
   return {
-    'tests/results/graphql/04-nested-dashboard.json': JSON.stringify(data, null, 2),
+    'tests/results/graphql/05-optimized-nested-query.json': JSON.stringify(data, null, 2),
   };
 }
