@@ -12,6 +12,14 @@ router.post('/login', (req, res, next) =>
     authController.login(req, res, next)
 );
 
+router.post('/otp', (req, res, next) =>
+    authController.verifyOTP(req, res, next)
+);
+
+router.post('/resend', (req, res, next) =>
+    authController.resend(req, res, next)
+);
+
 /**
  * GET /api/auth/me
  * Get current authenticated user

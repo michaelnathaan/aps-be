@@ -147,9 +147,32 @@ export interface LoginDTO {
   password?: string;
 }
 
+export interface OTPDTO {
+  sessionId: string;
+  otp: string;
+}
+
+export interface OTPMessageDTO {
+  phoneNumber: string;
+  otp: string;
+}
+
+export interface ResendOTPDTO {
+  sessionId: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+export interface OTPSessionResponse {
+  sessionId: string;
+  expires: number;
+}
+
+export interface SessionDTO {
+  phoneNumber: string;
 }
 
 export interface CreateFacilityDTO {
@@ -184,4 +207,11 @@ export interface UpdateUserDTO {
   role?: UserRole;
   isVerifiedTenant?: boolean;
   unitNumber?: string | null;
+}
+
+export interface FonnteResponse {
+  status: boolean;
+  detail?: string;
+  reason?: string;
+  id?: string;
 }

@@ -39,6 +39,15 @@ export const loginSchema = z.object({
     .regex(/^\+?[0-9]+$/, 'Phone number must contain only digits and optional + prefix')
 });
 
+export const otpSchema = z.object({
+  sessionId: z.string().min(1),
+  otp: z.string().length(4),
+});
+
+export const otpResendSchema = z.object({
+  sessionId: z.string().min(1),
+});
+
 export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
   try {
     return schema.parse(data);
