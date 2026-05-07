@@ -1,403 +1,349 @@
-# 📘 Step-by-Step Testing Guide
+# Step-by-Step Testing Guide
 
-Complete walkthrough for running load tests on your REST vs GraphQL research project.
+This guide explains how to run the REST and GraphQL load tests for the Apartment Booking System backend. It is intended for repeatable thesis or benchmark runs, so the steps emphasize environment consistency, authentication configuration, result collection, and documentation discipline.
 
----
+## Prerequisites
 
-## ✅ Prerequisites Checklist
+Before running the tests, confirm that the following are available:
 
-Before starting, ensure you have:
+- Docker and Docker Compose are installed.
+- The database service is available and seeded with the expected APS test data.
+- Node.js dependencies are installed with `npm install`.
+- k6 is installed and available from the terminal.
+- The backend `.env` file is configured for the test environment.
+- `DISABLE_OTP=true` is set before running k6 tests.
 
-- [ ] Docker Desktop installed and running
-- [ ] aps-db repository with seeded data
-- [ ] aps-backend repository with Docker containers running
-- [ ] k6 installed (`k6 version` works)
-- [ ] Node.js installed (`node --version` works)
+The k6 authentication helper logs in with phone number only and expects the login response to contain a JWT token. If `DISABLE_OTP` is not enabled, login returns an OTP session instead, and authenticated test scenarios will fail.
 
----
+Verify the important environment variables:
 
-## 🚀 Step 1: Verify Backend is Running
+```bash
+grep -E "DISABLE_OTP|REST_PORT|GRAPHQL_PORT|JWT_SECRET|DB_" .env
+```
 
-### 1.1 Check Docker Containers
+The expected authentication setting is:
+
+```env
+DISABLE_OTP=true
+```
+
+## Step 1: Start and Verify the Backend
+
+From the backend repository:
 
 ```bash
 cd aps-backend
+docker-compose up -d --build
 docker-compose ps
 ```
 
-**Expected output:**
-```
-NAME                  STATUS
-aps-postgres          Up (healthy)
-aps-rest-api          Up (healthy)
-aps-graphql-api       Up (healthy)
-```
+Expected services:
 
-If not all healthy, start them:
-```bash
-docker-compose up -d
+```text
+aps-rest-api       Up
+aps-graphql-api    Up
 ```
 
-### 1.2 Test API Endpoints
+If the database is managed by the separate `aps-db` project, verify that the database container is also running and reachable by both API containers.
 
-**REST API:**
+Check the REST API health endpoint:
+
 ```bash
 curl http://localhost:3001/health
 ```
 
-**Expected:** `{"status":"ok",...}`
+Check the GraphQL server health endpoint:
 
-**GraphQL API:**
 ```bash
 curl http://localhost:3002/.well-known/apollo/server-health
 ```
 
-**Expected:** `{"status":"pass"}`
+## Step 2: Confirm Login Behavior
 
----
+The load tests require direct token login. Run these checks before the benchmark.
 
-## 🧪 Step 2: Run Your First Test
+REST login:
 
-Let's run **Scenario 1** for both APIs to verify everything works.
+```bash
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{ "phoneNumber": "+6281234567892" }'
+```
 
-### 2.1 Test REST API
+The response must include `token` and `user`.
+
+GraphQL login:
+
+```bash
+curl -X POST http://localhost:3002/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "mutation Login($phoneNumber: String!) { login(input: { phoneNumber: $phoneNumber }) { token user { id fullName role } } }",
+    "variables": { "phoneNumber": "+6281234567892" }
+  }'
+```
+
+The response must include `data.login.token`. If either API returns `sessionId` instead of `token`, update `.env`, set `DISABLE_OTP=true`, and recreate the API containers:
+
+```bash
+docker-compose up -d --force-recreate rest-api graphql-api
+```
+
+## Step 3: Verify k6 and Scripts
+
+Confirm k6 is installed:
+
+```bash
+k6 version
+```
+
+Make the benchmark scripts executable:
+
+```bash
+chmod +x tests/k6/run-all.sh
+chmod +x scripts/monitor-resources.sh
+chmod +x scripts/compare-results.js
+```
+
+The default k6 configuration is in:
+
+```text
+tests/k6/config/config.js
+```
+
+The default endpoints are:
+
+```text
+REST:    http://localhost:3001/api
+GraphQL: http://localhost:3002/graphql
+```
+
+They can be overridden at runtime:
+
+```bash
+REST_URL=http://localhost:3001/api \
+GRAPHQL_URL=http://localhost:3002/graphql \
+k6 run tests/k6/scenarios/01-simple-list-rest.js
+```
+
+## Step 4: Run a Smoke Test
+
+Run one public REST scenario:
 
 ```bash
 k6 run tests/k6/scenarios/01-simple-list-rest.js
 ```
 
-**What to expect:**
-- Test runs for ~5 minutes
-- You'll see real-time metrics in terminal
-- VUs (Virtual Users) ramp up: 10 → 25 → 50 → 100
-- Final summary shows latency, throughput, error rate
-
-**Success indicators:**
-- ✅ `http_req_failed` rate < 1%
-- ✅ `checks` pass rate > 99%
-- ✅ P95 latency < 500ms
-
-### 2.2 Test GraphQL API
+Run the matching GraphQL scenario:
 
 ```bash
 k6 run tests/k6/scenarios/01-simple-list-graphql.js
 ```
 
-**What to expect:**
-- Same duration and load pattern as REST
-- Different endpoint (GraphQL)
-- Similar metrics reported
+A successful smoke test should show:
 
-### 2.3 Compare First Results
+- `http_req_failed` below the configured threshold.
+- `checks` above the configured threshold.
+- HTTP status checks passing.
+- No authentication errors for scenarios that require tokens.
 
-```bash
-# View summaries
-cat tests/results/rest/01-simple-list.json | grep -A 10 "metrics"
-cat tests/results/graphql/01-simple-list.json | grep -A 10 "metrics"
-```
+If Scenario 1 passes but Scenario 2 fails with authentication errors, recheck `DISABLE_OTP=true` and repeat the login verification step.
 
-**You should see difference in:**
-- Response times
-- Throughput
-- Data transfer sizes
+## Step 5: Run the Full Paired Benchmark
 
----
-
-## 🔄 Step 3: Monitor Resources
-
-While a test is running, monitor Docker containers in another terminal.
-
-### 3.1 Manual Monitoring
-
-```bash
-# In a new terminal window
-docker stats aps-rest-api aps-graphql-api aps-postgres
-```
-
-**What to watch:**
-- CPU % (should spike during tests)
-- Memory usage (should remain stable)
-- Network I/O (active during tests)
-
-Press `Ctrl+C` to stop monitoring.
-
-### 3.2 Automated Monitoring
-
-For production test runs, use the monitoring script:
-
-```bash
-# Monitor for 5 minutes (300 seconds)
-./scripts/monitor-resources.sh 300 tests/results/test-resources.csv all
-```
-
-This saves data to CSV for later analysis.
-
----
-
-## 📊 Step 4: Run All Scenarios
-
-Now that you've verified everything works, run the complete test suite.
-
-### 4.1 Run Complete Test Suite
+Run all scenarios:
 
 ```bash
 ./tests/k6/run-all.sh
 ```
 
-**What happens:**
-1. Creates result directories
-2. Runs 6 scenarios for REST (30-40 minutes)
-3. Cool-down periods between tests
-4. Runs 6 scenarios for GraphQL (30-40 minutes)
-5. Saves all results to `tests/results/`
+The script runs each scenario as a REST and GraphQL pair. It also starts Docker resource monitoring for the API container under test.
 
-**Total duration:** ~60-90 minutes
+Current paired scenarios:
 
-### 4.2 Monitor Progress
+| Scenario | Name | Main comparison |
+|----------|------|-----------------|
+| 01 | Simple list | Public facility list retrieval |
+| 02 | List with relations | REST relational endpoint vs GraphQL nested selection |
+| 03 | Filtered slots | Parameterized availability query |
+| 04 | Generic nested query | Client-composed REST calls vs GraphQL composed query |
+| 05 | Optimized nested query | Dedicated dashboard endpoint/resolver |
+| 06 | Booking creation | Write operation and conflict handling |
 
-The script shows progress:
+The full run usually takes more than one hour because each scenario runs for approximately five minutes per API, with cooldown periods between pairs.
+
+During the benchmark:
+
+- Keep the machine workload stable.
+- Do not restart containers.
+- Do not modify code, database seed data, or Docker resource limits.
+- Keep the terminal open until the script finishes.
+- Record the date, machine specifications, Docker limits, and git revision.
+
+## Step 6: Monitor Resources Manually, If Needed
+
+The full runner starts resource monitoring automatically. For manual observation in another terminal:
+
+```bash
+docker stats aps-rest-api aps-graphql-api
 ```
-==========================================
-📊 Scenario: 01-simple-list (rest)
-==========================================
 
-Running k6 test...
-[... k6 output ...]
+For a separate CSV capture:
 
-✅ Completed: 01-simple-list (rest)
-
-⏳ Cooling down for 30 seconds...
+```bash
+./scripts/monitor-resources.sh 300 tests/results/manual-resources.csv all
 ```
 
-**Tips:**
-- Let it run uninterrupted
-- Don't use your computer heavily during tests
-- Don't start/stop Docker containers
-- Check logs if any test fails
+The monitor records CPU, memory, and network statistics every five seconds.
 
----
+## Step 7: Analyze Results
 
-## 📈 Step 5: Analyze Results
-
-### 5.1 Generate Comparison Report
+After the full run completes:
 
 ```bash
 node scripts/compare-results.js
 ```
 
-**Output:**
-- Performance comparison tables
-- Latency differences
-- Throughput comparison
-- Data transfer analysis
-- Winner for each scenario
+The comparison script reads:
 
-### 5.2 View Individual Scenario Results
-
-```bash
-# View REST Scenario 1 summary
-cat tests/results/rest/01-simple-list-summary.json | jq '.metrics'
-
-# View GraphQL Scenario 4 summary
-cat tests/results/graphql/04-nested-dashboard-summary.json | jq '.metrics'
+```text
+tests/results/rest/*-summary.json
+tests/results/graphql/*-summary.json
+tests/results/rest/*-resources.csv
+tests/results/graphql/*-resources.csv
 ```
 
-### 5.3 View Resource Usage
+Important metrics to extract:
+
+- Average, median, p90, and p95 latency.
+- Requests per second.
+- Total requests.
+- Error rate.
+- CPU usage.
+- Memory usage.
+- Data received and sent.
+
+Example direct extraction:
 
 ```bash
-# View CSV data
-head tests/results/rest/01-simple-list-resources.csv
-
-# Or open in Excel/Google Sheets for charts
+jq '.metrics.http_req_duration.values["p(95)"]' tests/results/rest/01-simple-list-summary.json
+jq '.metrics.http_reqs.rate' tests/results/rest/01-simple-list-summary.json
+jq '.metrics.http_req_failed.rate' tests/results/rest/01-simple-list-summary.json
 ```
 
----
+## Step 8: Organize Result Files
 
-## 📝 Step 6: Document Results for Thesis
+After a successful full run, the expected structure is:
 
-### 6.1 Extract Key Metrics
-
-Create a spreadsheet with these columns:
-
-**Scenario | API | Avg Latency | P95 Latency | Throughput | Error Rate | CPU Avg | Memory Avg**
-
-Example data extraction:
-```bash
-# Get P95 latency for REST Scenario 1
-cat tests/results/rest/01-simple-list-summary.json | jq '.metrics.http_req_duration.values["p(95)"]'
-
-# Get throughput
-cat tests/results/rest/01-simple-list-summary.json | jq '.metrics.http_reqs.values.rate'
+```text
+tests/results/
+  rest/
+    01-simple-list-raw.json
+    01-simple-list-summary.json
+    01-simple-list-resources.csv
+    ...
+  graphql/
+    01-simple-list-raw.json
+    01-simple-list-summary.json
+    01-simple-list-resources.csv
+    ...
 ```
 
-### 6.2 Create Comparison Tables
+Keep the raw JSON and CSV files. They provide the evidence needed to reproduce tables, charts, and statistical analysis.
 
-**Table IV: Performance Metrics Comparison (Example)**
+For formal reporting, create a run log with:
 
-| Scenario | Metric | REST | GraphQL | Difference |
-|----------|--------|------|---------|------------|
-| Simple List | P95 Latency | 89ms | 103ms | +15.7% |
-| Simple List | Throughput | 523 rps | 498 rps | -4.8% |
-| N+1 Test | P95 Latency | 145ms | 132ms | -9.0% |
-| ... | ... | ... | ... | ... |
+- Date and time of the run.
+- Host CPU, memory, and operating system.
+- Docker resource limits.
+- Backend git commit.
+- Database seed version or dataset description.
+- Value of `DISABLE_OTP`.
+- k6 version.
+- Notes about unexpected errors or interruptions.
 
-### 6.3 Create Charts
+## Troubleshooting
 
-Use the JSON data to create:
-- **Bar chart:** P95 latency comparison (6 scenarios side-by-side)
-- **Line chart:** Throughput over time
-- **Stacked bar:** Resource usage (CPU + Memory)
+### k6 is not found
 
----
+Install k6 and verify the installation:
 
-## 🐛 Troubleshooting Common Issues
-
-### Issue 1: "k6: command not found"
-
-**Solution:**
 ```bash
-# Windows
-choco install k6
-
-# Verify
 k6 version
 ```
 
-### Issue 2: High error rates in tests
+### Login returns `sessionId` instead of `token`
 
-**Possible causes:**
-- Database connection issues
-- Containers not healthy
-- Too much concurrent load
+The OTP flow is still enabled. Set:
 
-**Solution:**
+```env
+DISABLE_OTP=true
+```
+
+Then recreate both API containers:
+
 ```bash
-# Check container logs
+docker-compose up -d --force-recreate rest-api graphql-api
+```
+
+Repeat the REST and GraphQL login checks before rerunning k6.
+
+### Authenticated scenarios fail with 401
+
+Possible causes:
+
+- `DISABLE_OTP` is not enabled in the running container.
+- `JWT_SECRET` differs between token creation and token verification.
+- The test phone numbers do not exist in the seeded database.
+- The API containers were not recreated after `.env` changes.
+
+Check the effective container environment:
+
+```bash
+docker exec aps-rest-api printenv DISABLE_OTP
+docker exec aps-graphql-api printenv DISABLE_OTP
+```
+
+### Services are not healthy
+
+Review container status and logs:
+
+```bash
+docker-compose ps
 docker-compose logs rest-api
 docker-compose logs graphql-api
-
-# Restart services
-docker-compose restart
-
-# Reduce load in config files if needed
 ```
 
-### Issue 3: Tests timing out
+Restart the services if needed:
 
-**Solution:**
 ```bash
-# Increase timeout in config files
-# Edit tests/k6/config/rest.config.js
-export const HTTP_OPTIONS = {
-  timeout: '60s',  // Increase from 30s
-};
+docker-compose restart rest-api graphql-api
 ```
 
-### Issue 4: Booking conflicts in Scenario 5
+### Booking creation has conflicts
 
-**This is EXPECTED!** Booking creation tests will have some conflicts (409 errors) because:
-- Multiple VUs try to book same slots
-- This is realistic behavior
-- Error rate threshold is 5% for write scenarios
+Some booking conflicts are expected in Scenario 06 because concurrent users may attempt to create bookings for overlapping facilities and times. Treat conflict rates as part of the write workload analysis, but investigate them if they exceed the configured threshold or are accompanied by system failures.
 
-### Issue 5: Inconsistent results between runs
+### Results vary between runs
 
-**Solution:**
-- Run each scenario 3 times
-- Use median values
-- Ensure system is idle during tests
-- Close unnecessary applications
+Benchmark variation is normal. For thesis reporting:
 
----
+- Run each scenario set multiple times.
+- Use the median result or report all runs transparently.
+- Avoid heavy background applications.
+- Keep Docker resource limits unchanged.
+- Allow cooldown time between runs.
 
-## 🎓 Best Practices for Research
+## Research Reporting Checklist
 
-### Do:
-- ✅ Run tests during low system load (night/weekends)
-- ✅ Run each scenario 3 times for statistical validity
-- ✅ Document exact conditions (date, time, system state)
-- ✅ Save raw results (JSON files) for reproducibility
-- ✅ Cool down between tests (30 seconds minimum)
-- ✅ Monitor resources during all tests
+Before using the results in a thesis or report, confirm that:
 
-### Don't:
-- ❌ Run other heavy applications during tests
-- ❌ Modify code between test runs
-- ❌ Change Docker resource limits mid-testing
-- ❌ Interrupt tests once started
-- ❌ Cherry-pick best results (report all runs)
+- The same backend commit was used for both APIs.
+- REST and GraphQL used the same database and seed data.
+- `DISABLE_OTP=true` was enabled for both API containers.
+- Both APIs used equivalent Docker resource limits.
+- The full scenario set completed without interruption.
+- Raw result files were preserved.
+- Any excluded run is documented with a reason.
 
----
-
-## 📊 What Success Looks Like
-
-After completing all tests, you should have:
-
-**Files (12 test runs):**
-```
-tests/results/
-├── rest/
-│   ├── 01-simple-list-summary.json
-│   ├── 01-simple-list-resources.csv
-│   ├── 02-list-with-relations-summary.json
-│   ├── 02-list-with-relations-resources.csv
-│   ├── ... (6 scenarios total)
-└── graphql/
-    ├── 01-simple-list-summary.json
-    ├── 01-simple-list-resources.csv
-    ├── ... (6 scenarios total)
-```
-
-**Metrics collected:**
-- ✅ Latency (avg, p50, p95, p99)
-- ✅ Throughput (requests/sec)
-- ✅ Error rates
-- ✅ CPU usage over time
-- ✅ Memory usage over time
-- ✅ Network I/O
-
-**Ready for:**
-- Chapter 4 (Results) tables
-- Performance comparison charts
-- Statistical analysis
-- Discussion and conclusions
-
----
-
-## ⏭️ Next Steps
-
-1. ✅ Run all tests
-2. ✅ Analyze results
-3. Create visualizations (charts/graphs)
-4. Perform statistical analysis (t-tests, confidence intervals)
-5. Write Chapter 4 (Results)
-6. Interpret findings for Chapter 5 (Discussion)
-
----
-
-## 💡 Tips for Your Thesis
-
-### Chapter 4 (Results) should include:
-
-1. **Methodology recap** (brief reference to Chapter 3)
-2. **Test environment details** (Docker resources, k6 version, date)
-3. **Raw data tables** (all metrics for all scenarios)
-4. **Comparison tables** (REST vs GraphQL side-by-side)
-5. **Charts/graphs** (visual comparison)
-6. **Statistical analysis** (significance tests)
-7. **Key findings** (bullet points of major insights)
-
-### Chapter 5 (Discussion) should cover:
-
-1. **Interpretation** of results
-2. **Trade-offs** (when to use REST vs GraphQL)
-3. **Unexpected findings**
-4. **Limitations** of the study
-5. **Practical implications**
-6. **Future research** directions
-
----
-
-**Good luck with your testing!** 🚀
-
-**Questions?** Review the LOAD_TESTING.md for detailed documentation.
+The final report should include tables for latency, throughput, error rate, and resource utilization, followed by a short interpretation of the observed differences for each scenario.

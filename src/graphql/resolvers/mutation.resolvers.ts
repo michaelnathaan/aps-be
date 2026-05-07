@@ -1,7 +1,8 @@
 import { GraphQLContext } from '../context';
 import { userService } from '../../core/services/user.service';
+import { otpService } from '../../core/services/otp.service';
 import { bookingService } from '../../core/services/booking.service';
-import { validate, loginSchema, createBookingSchema, updateFacilitySchema, createUserSchema, updateUserSchema, createFacilitySchema } from '../../core/validators/booking.validator';
+import { validate, loginSchema, otpSchema, otpResendSchema, createBookingSchema, updateFacilitySchema, createUserSchema, updateUserSchema, createFacilitySchema } from '../../core/validators/booking.validator';
 import { facilityService } from '../../core/services/facility.service';
 import { requireAuth, requireRole } from '../guard/auth.guard';
 import { UserRole } from '../../core/types';
@@ -15,6 +16,18 @@ export const mutationResolvers = {
       const credentials = validate(loginSchema, input);
 
       return await userService.login(credentials);
+    },
+
+    verifyOtp: async (_: any, { input }: { input: any }) => {
+      const credentials = validate(otpSchema, input);
+
+      return await otpService.verify(credentials);
+    },
+
+    resendOtp: async (_: any, { input }: { input: any }) => {
+      const credentials = validate(otpResendSchema, input);
+
+      return await otpService.resendSession(credentials);
     },
 
     createBooking: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
