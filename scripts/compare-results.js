@@ -9,10 +9,10 @@ const path = require('path');
 
 const SCENARIOS = [
   { id: '01-simple-list', name: 'Simple List Query' },
-  { id: '02-list-with-relations', name: 'List with Relations' },
+  { id: '02-list-with-relations', name: 'List with Relations (REST JOIN vs GraphQL Data Loader)' },
   { id: '03-filtered-slots', name: 'Filtered Slot Availability' },
-  { id: '04-generic-nested-query', name: 'Generic Nested User Dashboard' },
-  { id: '05-optimized-nested-query', name: 'Optimized Nested User Dashboard' },
+  { id: '04-generic-nested-query', name: 'Generic Nested User Dashboard (REST Client Aggregation vs GraphQL Data Loader)' },
+  { id: '05-optimized-nested-query', name: 'Optimized Nested User Dashboard (Both using joins)' },
   { id: '06-booking-creation', name: 'Booking Creation (Write)' },
 ];
 
