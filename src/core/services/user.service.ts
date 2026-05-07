@@ -1,8 +1,8 @@
-import { User, UserDashboard, LoginDTO, CreateUserDTO, UpdateUserDTO, OTPSessionResponse } from '../../core/types';
+import { User, UserDashboard, LoginDTO, CreateUserDTO, UpdateUserDTO, OTPSessionResponse, AuthResponse } from '../../core/types';
 import { ConflictError, NotFoundError, UnauthorizedError } from '../../core/errors/custom-errors';
 import { usersQueries } from '../../db/queries/users.queries';
 import { bookingsQueries } from '../../db/queries/bookings.queries';
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import { otpService } from './otp.service';
 
 /**
@@ -11,38 +11,16 @@ import { otpService } from './otp.service';
  */
 export class UserService {
     private readonly JWT_SECRET = process.env.JWT_SECRET || '';
-    // private readonly JWT_EXPIRES_IN: SignOptions['expiresIn'] =
-    //     process.env.JWT_EXPIRES_IN
-    //         ? Number(process.env.JWT_EXPIRES_IN)
-    //         : 60 * 60 * 24 * 7;
+    private readonly JWT_EXPIRES_IN: SignOptions['expiresIn'] =
+        process.env.JWT_EXPIRES_IN
+            ? Number(process.env.JWT_EXPIRES_IN)
+            : 60 * 60 * 24 * 7;
 
     async getUsersByIds(ids: number[]): Promise<User[]> {
         return await usersQueries.findByIds(ids);
     }
 
-    /**
-     * Simple authentication (phone number only for MVP)
-     * In production: add password/OTP verification
-     */
-    // async login(credentials: LoginDTO): Promise<AuthResponse> {
-    //     const { phoneNumber } = credentials;
-
-    //     const user = await usersQueries.findByPhoneNumber(phoneNumber);
-
-    //     if (!user) {
-    //         throw new UnauthorizedError('Invalid phone number');
-    //     }
-
-    //     const token = this.generateToken(user.id, user.role);
-
-    //     return {
-    //         token,
-    //         user
-    //     };
-    // }
-
-    // Login OTP flow
-    async login(credentials: LoginDTO): Promise<OTPSessionResponse> {
+    async login(credentials: LoginDTO): Promise<AuthResponse | OTPSessionResponse> {
         const { phoneNumber } = credentials;
 
         const user = await usersQueries.findByPhoneNumber(phoneNumber);
@@ -51,15 +29,19 @@ export class UserService {
             throw new UnauthorizedError('Invalid phone number');
         }
 
-        const { sessionId, expires } = otpService.createSession(credentials)
+        if (this.isOtpDisabled()) {
+            return {
+                token: this.generateToken(user.id, user.role),
+                user
+            };
+        }
 
-
+        const { sessionId, expires } = otpService.createSession(credentials);
         return {
             sessionId,
             expires
         };
     }
-    // End of login OTP flow
 
     async verifyToken(token: string): Promise<User> {
         try {
@@ -107,15 +89,19 @@ export class UserService {
         };
     }
 
-    // private generateToken(userId: number, role: string): string {
-    //     const payload = { userId, role };
+    private isOtpDisabled(): boolean {
+        return ['true', '1', 'yes'].includes((process.env.DISABLE_OTP || '').toLowerCase());
+    }
 
-    //     const options: SignOptions = {
-    //         expiresIn: this.JWT_EXPIRES_IN,
-    //     };
+    private generateToken(userId: number, role: string): string {
+        const payload = { userId, role };
 
-    //     return jwt.sign(payload, this.JWT_SECRET, options);
-    // }
+        const options: SignOptions = {
+            expiresIn: this.JWT_EXPIRES_IN,
+        };
+
+        return jwt.sign(payload, this.JWT_SECRET, options);
+    }
 
 
     decodeToken(token: string): { userId: number; role: string } | null {
