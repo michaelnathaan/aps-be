@@ -284,27 +284,3 @@ console.log(`Throughput:         REST: ${winners.throughput.rest} | GraphQL: ${w
 console.log(`CPU Efficiency:     REST: ${winners.cpu.rest} | GraphQL: ${winners.cpu.gql}`);
 console.log(`Memory Efficiency:  REST: ${winners.memory.rest} | GraphQL: ${winners.memory.gql}`);
 console.log(`Data Efficiency:    REST: ${winners.data.rest} | GraphQL: ${winners.data.gql}`);
-
-console.log('\n' + '='.repeat(80));
-console.log('FINAL VERDICT & RESEARCH CONCLUSION');
-console.log('='.repeat(80));
-
-// 1. Resource Impact (CPU & Memory)
-const totalResRest = winners.cpu.rest + winners.memory.rest;
-const totalResGql = winners.cpu.gql + winners.memory.gql;
-
-console.log('\nSYSTEM RESOURCE SUMMARY:');
-if (totalResRest > totalResGql) {
-  console.log('   • GraphQL is more resource-efficient overall, making it suitable for');
-  console.log('     serverless or memory-constrained environments.');
-} else {
-  console.log('   • REST maintains a smaller resource footprint. The GraphQL AST parsing');
-  console.log('     and validation layer introduces measurable CPU/RAM overhead.');
-}
-
-// 2. Deployment Recommendation
-console.log('\nRECOMMENDATIONS FOR APS (Apartment Booking System):');
-if (winners.latency.rest > 3) { // If REST won most latency tests
-  console.log('   • Use REST for: High-frequency, simple operations (e.g., health checks, logging)');
-  console.log('     where every millisecond of server-side latency counts.');
-}

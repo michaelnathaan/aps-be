@@ -87,12 +87,34 @@ type AuthResponse {
   user: User!
 }
 
+type LoginResponse {
+  token: String
+  user: User
+  sessionId: String
+  expires: Float
+}
+
+type OTPSessionResponse {
+  phoneNumber: String
+  sessionId: String!
+  expires: Float!
+}
+
 # ============================================
 # INPUT TYPES
 # ============================================
 
 input LoginInput {
   phoneNumber: String!
+}
+
+input OTPInput {
+  sessionId: String!
+  otp: String!
+}
+
+input ResendOTPInput {
+  sessionId: String!
 }
 
 input CreateBookingInput {
@@ -168,7 +190,9 @@ type Query {
 # ============================================
 
 type Mutation {
-  login(input: LoginInput!): AuthResponse!
+  login(input: LoginInput!): LoginResponse!
+  verifyOtp(input: OTPInput!): AuthResponse!
+  resendOtp(input: ResendOTPInput!): OTPSessionResponse!
 
   createFacility(input: CreateFacilityInput!): Facility!
   updateFacility(id: Int!, input: UpdateFacilityInput!): Facility!

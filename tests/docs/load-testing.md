@@ -1,595 +1,585 @@
-# 🧪 Load Testing Documentation
+# Load Testing Documentation
 
-Complete guide to performance testing for **REST vs GraphQL comparison research**.
+This document describes the load testing methodology for comparing the REST and GraphQL implementations of the Apartment Booking System backend. It defines the test environment, scenario design, metrics, execution process, and reporting approach used for formal benchmark analysis.
 
----
+## 1. Overview
 
-## 📋 Table of Contents
+The load testing suite compares REST and GraphQL under equivalent operating conditions. Both APIs use the same database, service layer, validation rules, authentication rules, and business logic. The primary difference under test is the API architecture and request shape.
 
-1. [Overview](#overview)
-2. [Test Scenarios](#test-scenarios)
-3. [Metrics Collected](#metrics-collected)
-4. [Setup & Installation](#setup--installation)
-5. [Running Tests](#running-tests)
-6. [Analyzing Results](#analyzing-results)
-7. [Troubleshooting](#troubleshooting)
-8. [Research Methodology](#research-methodology)
+The benchmark is designed to answer the following questions:
 
----
+- How do REST and GraphQL compare in latency under equivalent load?
+- How do they compare in throughput?
+- How much CPU and memory does each API consume?
+- How does response payload size differ by scenario?
+- How do the architectures behave for relational reads, nested reads, and writes?
 
-## Overview
+The suite uses k6 for traffic generation, Docker resource statistics for container-level resource monitoring, and a Node.js comparison script for result aggregation.
 
-### Purpose
+## 2. Authentication Requirement
 
-This load testing suite compares **REST** and **GraphQL** API performance under **identical conditions** to provide scientifically valid research data.
+The k6 scenarios authenticate by calling login with a phone number and using the returned JWT token:
 
-### Key Principles
+```json
+{ "phoneNumber": "+6281234567892" }
+```
 
-- ✅ **Identical Load Patterns** - Same VUs, duration, ramp-up for both APIs
-- ✅ **Same Test Data** - Both APIs query the same database
-- ✅ **Fair Comparison** - Industry-standard optimizations for each architecture
-- ✅ **Reproducible** - Automated scripts with consistent results
+For this to work, OTP must be disabled during load tests:
 
-### Tools Used
+```env
+DISABLE_OTP=true
+```
 
-- **k6** - Load testing tool (Grafana Labs)
-- **Docker Stats** - Resource monitoring
-- **Node.js** - Result analysis scripts
+When `DISABLE_OTP=true`, the REST and GraphQL login endpoints return a token directly. When it is not enabled, login returns an OTP session, which is correct for normal OTP flow but incompatible with the current k6 authentication helper.
 
----
+Before running any authenticated scenario, verify both API containers have the setting:
 
-## Test Scenarios
+```bash
+docker exec aps-rest-api printenv DISABLE_OTP
+docker exec aps-graphql-api printenv DISABLE_OTP
+```
 
-### **Scenario 1: Simple List Query**
+Both commands should print:
 
-**Purpose:** Baseline performance measurement
+```text
+true
+```
 
-**What it tests:**
-- Basic facility listing (GET /facilities or `query { facilities }`)
-- No complex JOINs or nested data
-- Pure retrieval performance
+If `.env` is changed, recreate the API containers:
 
-**Expected behavior:**
-- Should be fastest scenario
-- Minimal latency
-- High throughput
+```bash
+docker-compose up -d --force-recreate rest-api graphql-api
+```
 
-**Research significance:** Establishes baseline performance for both architectures
+## 3. Test Environment
 
----
+### Required Services
 
-### **Scenario 2: List with Relational Data**
+The benchmark expects these services to be available:
 
-**Purpose:** Test N+1 query handling
+| Service | Default URL | Purpose |
+|---------|-------------|---------|
+| REST API | `http://localhost:3001/api` | REST benchmark target |
+| GraphQL API | `http://localhost:3002/graphql` | GraphQL benchmark target |
+| PostgreSQL | configured through `.env` | Shared data store |
 
-**What it tests:**
-- User bookings with nested user + facility data
-- REST: SQL JOINs vs GraphQL: DataLoader batching
-- Multiple related entities per request
+### Required Tools
 
-**REST endpoint:** `GET /users/:id/bookings`
-**GraphQL query:**
+| Tool | Purpose |
+|------|---------|
+| Docker and Docker Compose | Run the backend services with consistent limits |
+| k6 | Generate load and collect HTTP metrics |
+| Node.js | Run result comparison scripts |
+| jq | Optional command-line JSON inspection |
+
+### Key Environment Settings
+
+The following settings should be recorded for each formal run:
+
+| Variable | Expected use |
+|----------|--------------|
+| `DISABLE_OTP=true` | Enables direct token login for k6 |
+| `REST_PORT=3001` | REST API host port |
+| `GRAPHQL_PORT=3002` | GraphQL API host port |
+| `JWT_SECRET` | Must be consistent for token signing and verification |
+| `JWT_EXPIRES_IN` | Token lifetime |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Database connection |
+| `LOG_LEVEL` | Logging verbosity |
+
+For Docker Compose runs, `docker-compose.yml` passes `DISABLE_OTP`, JWT, database, logging, and OTP provider variables into both API services.
+
+## 4. Experimental Controls
+
+The comparison is meaningful only if the following controls remain stable:
+
+- Both APIs run on the same host machine.
+- Both APIs use the same database and seed data.
+- Both APIs use the same Docker CPU and memory limits.
+- Both APIs use the same load profile.
+- Both APIs use the same authentication mode.
+- No code changes are made between paired REST and GraphQL runs.
+- The host machine is not under unrelated heavy workload.
+
+The current Docker Compose configuration assigns equivalent resource limits to both API containers.
+
+## 5. Load Profile
+
+The shared k6 configuration is defined in:
+
+```text
+tests/k6/config/config.js
+```
+
+The current read and write profiles use the same stage structure:
+
+| Stage | Duration | Target |
+|-------|----------|--------|
+| Warm-up | 1 minute | 100 virtual users |
+| Sustained load | 3 minutes | 100 virtual users |
+| Cooldown | 1 minute | 0 virtual users |
+
+Default thresholds:
+
+| Metric | Threshold |
+|--------|-----------|
+| `http_req_duration` | p50 < 500 ms, p95 < 1000 ms, p99 < 2000 ms |
+| `http_reqs` | rate > 30 requests per second |
+| `http_req_failed` | rate < 1 percent |
+| `checks` | rate > 99 percent |
+
+Scenario 06 uses write-specific thresholds because booking creation can include expected conflicts.
+
+## 6. Test Scenarios
+
+### Scenario 01: Simple List
+
+Purpose: establish baseline read performance.
+
+REST:
+
+```http
+GET /api/facilities
+```
+
+GraphQL:
+
 ```graphql
-query {
-  userBookings(userId: 3) {
+query GetFacilities {
+  facilities {
     id
-    user { fullName }
-    facility { name }
+    name
+    description
+    pricePerHour
+    openTime
+    closeTime
+    isActive
   }
 }
 ```
 
-**Research significance:** Tests core architectural difference - how each handles related data
+This scenario is public and does not require authentication.
 
----
+### Scenario 02: List with Relations
 
-### **Scenario 3: Filtered Slot Availability**
+Purpose: compare retrieval of related booking, user, and facility data.
 
-**Purpose:** Test parameter handling and filtering
+REST:
 
-**What it tests:**
-- Date-based filtering
-- Query parameter parsing
-- Business logic execution (slot generation)
+```http
+GET /api/users/:id/bookings?limit=10&offset=0
+```
 
-**REST endpoint:** `GET /facilities/:id/slots?date=2026-01-22`
-**GraphQL query:**
+GraphQL:
+
 ```graphql
-query {
-  availableSlots(input: {
-    facilityId: 1
-    date: "2026-01-22"
-  }) {
-    slots { startTime endTime isAvailable }
+query GetUserBookings($userId: Int!, $limit: Int!, $offset: Int!) {
+  userBookings(userId: $userId, limit: $limit, offset: $offset) {
+    id
+    bookingDate
+    startTime
+    endTime
+    status
+    totalPrice
+    user { id fullName phoneNumber role }
+    facility { id name pricePerHour openTime closeTime }
   }
 }
 ```
 
-**Research significance:** Tests how each architecture handles parameterized queries
+This scenario requires a JWT token.
 
----
+### Scenario 03: Filtered Slots
 
-### **Scenario 4: Nested User Dashboard**
+Purpose: measure parameterized availability lookup and slot generation.
 
-**Purpose:** Test deep data fetching
+REST:
 
-**What it tests:**
-- Multiple levels of nesting (user → bookings → facility + user)
-- Aggregations (count, sum)
-- Complex composite responses
+```http
+GET /api/facilities/:id/slots?date=YYYY-MM-DD
+```
 
-**REST endpoint:** `GET /users/:id/dashboard`
-**GraphQL query:**
+GraphQL:
+
 ```graphql
-query {
-  userDashboard(userId: 3) {
-    user { fullName }
+query GetAvailableSlots($input: SlotAvailabilityInput!) {
+  availableSlots(input: $input) {
+    facilityId
+    date
+    slots {
+      startTime
+      endTime
+      isAvailable
+    }
+  }
+}
+```
+
+This scenario is public and does not require authentication.
+
+### Scenario 04: Generic Nested Query
+
+Purpose: compare a generic composition strategy.
+
+REST performs multiple requests and composes the result client-side:
+
+```http
+GET /api/users/:id
+GET /api/users/:id/bookings?limit=10&offset=0
+```
+
+GraphQL performs a single request with multiple fields:
+
+```graphql
+query GetDashboardGeneric($userId: Int!, $limit: Int!, $offset: Int!) {
+  user(id: $userId) {
+    id
+    fullName
+    phoneNumber
+    role
+    isVerifiedTenant
+  }
+  userBookingsGeneric(userId: $userId, limit: $limit, offset: $offset) {
+    id
+    bookingDate
+    startTime
+    endTime
+    status
+    totalPrice
+    facility { id name pricePerHour }
+  }
+}
+```
+
+This scenario requires a JWT token.
+
+### Scenario 05: Optimized Nested Query
+
+Purpose: compare dedicated dashboard retrieval for both API styles.
+
+REST:
+
+```http
+GET /api/users/:id/dashboard?limit=10&offset=0
+```
+
+GraphQL:
+
+```graphql
+query GetUserDashboard($userId: Int!, $limit: Int!, $offset: Int!) {
+  userDashboard(userId: $userId, limit: $limit, offset: $offset) {
+    user { id fullName phoneNumber role isVerifiedTenant }
     bookings {
-      facility { name }
-      user { fullName }
+      id
+      bookingDate
+      startTime
+      endTime
+      status
+      totalPrice
+      facility { id name pricePerHour }
+      user { id fullName }
     }
     bookingCountToday
+    upcomingBookings
     totalSpent
   }
 }
 ```
 
-**Research significance:** 
-- Tests GraphQL's strength (flexible nesting)
-- Tests REST's challenge (composite endpoints or multiple requests)
+This scenario requires a JWT token.
 
----
+### Scenario 06: Booking Creation
 
-### **Scenario 5: Booking Creation (Write Operations)**
+Purpose: measure write performance, validation, conflict behavior, and cleanup.
 
-**Purpose:** Test write performance and validation
+REST:
 
-**What it tests:**
-- POST requests vs GraphQL mutations
-- Input validation
-- Conflict detection
-- Database writes
+```http
+POST /api/bookings
+DELETE /api/bookings/:id/hard
+```
 
-**REST endpoint:** `POST /bookings`
-**GraphQL mutation:**
+GraphQL:
+
 ```graphql
-mutation {
-  createBooking(input: {
-    userId: 3
-    facilityId: 1
-    bookingDate: "2026-01-22"
-    startTime: "14:00:00"
-    endTime: "15:00:00"
-  }) {
-    id status
+mutation CreateBooking($input: CreateBookingInput!) {
+  createBooking(input: $input) {
+    id
+    status
+    totalPrice
   }
 }
 ```
 
-**Expected behavior:**
-- Higher latency than reads
-- Some conflicts (409 errors) are expected and acceptable
-- Lower throughput
+The scenario creates bookings using test users and deletes successful bookings with an admin token. Some booking conflicts can occur under concurrent load and should be analyzed separately from system failures.
 
-**Research significance:** Tests mutation/write operation performance
+## 7. Metrics Collected
 
----
+### k6 Metrics
 
-### **Scenario 6: Mixed Read-Write Workload**
+| Metric | Meaning |
+|--------|---------|
+| `http_req_duration` | End-to-end request duration |
+| `http_reqs` | Request throughput and total count |
+| `http_req_failed` | Failed HTTP request rate |
+| `checks` | Scenario-specific validation pass rate |
+| `data_received` | Response payload and protocol bytes received |
+| `data_sent` | Request payload and protocol bytes sent |
 
-**Purpose:** Simulate realistic user behavior
+### Custom Scenario Metrics
 
-**Distribution:**
-- 70% Browsing (list/view facilities)
-- 20% Availability checks (slot queries)
-- 10% Booking creation
+| Metric | Used by |
+|--------|---------|
+| `facility_count` | Scenario 01 |
+| `response_size_bytes` | Multiple read scenarios |
+| `bookings_retrieved` | Scenario 02 |
+| `nested_objects_count` | Scenario 02 |
+| `available_slots_count` | Scenario 03 |
+| `booked_slots_count` | Scenario 03 |
+| `requests_per_dashboard` | Scenario 04 |
+| `user_bookings_count` | Scenario 05 |
+| `booking_success` | Scenario 06 |
+| `booking_conflict` | Scenario 06 |
+| `bookings_created` | Scenario 06 |
+| `booking_deleted` | Scenario 06 |
 
-**What it tests:**
-- Real-world usage patterns
-- Performance under mixed load
-- System behavior with varied request types
+### Docker Resource Metrics
 
-**Research significance:** Most realistic scenario - mimics actual production usage
+The resource monitor records:
 
----
+- Timestamp.
+- Container name.
+- CPU percentage.
+- Memory usage in MB.
+- Memory limit in MB.
+- Memory percentage.
+- Network input.
+- Network output.
 
-## Metrics Collected
+Resource files are written as CSV.
 
-### Performance Metrics (k6)
+## 8. Running Tests
 
-| Metric | Description | Unit | Threshold |
-|--------|-------------|------|-----------|
-| **Average Latency** | Mean response time | ms | < 200 ms |
-| **P50 Latency** | Median response time | ms | < 200 ms |
-| **P95 Latency** | 95th percentile | ms | < 500 ms |
-| **P99 Latency** | 99th percentile | ms | < 1000 ms |
-| **Throughput** | Requests per second | req/s | > 50 |
-| **Error Rate** | Failed requests | % | < 1% |
-| **Data Received** | Response payload size | MB | - |
-| **Data Sent** | Request payload size | MB | - |
-
-### Resource Metrics (Docker Stats)
-
-| Metric | Description | Unit |
-|--------|-------------|------|
-| **CPU Usage** | CPU utilization | % |
-| **Memory Usage** | RAM consumption | MB |
-| **Memory Limit** | Allocated memory | MB |
-| **Network Input** | Data received | MB |
-| **Network Output** | Data sent | MB |
-
-### Custom Metrics (Scenario-Specific)
-
-- **Facility Count** - Number of facilities retrieved
-- **Bookings Retrieved** - Number of bookings fetched
-- **Available Slots** - Count of available time slots
-- **Booked Slots** - Count of unavailable slots
-- **Successful Bookings** - Bookings created successfully
-- **Booking Conflicts** - Conflict errors encountered
-
----
-
-## Setup & Installation
-
-### Prerequisites
-
-1. **Docker & Docker Compose** (for running APIs)
-2. **k6** (load testing tool)
-3. **Node.js 20+** (for analysis scripts)
-
-### Install k6
-
-**Windows:**
-```powershell
-choco install k6
-```
-
-**macOS:**
-```bash
-brew install k6
-```
-
-**Linux:**
-```bash
-sudo gpg -k
-sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-sudo apt-get update
-sudo apt-get install k6
-```
-
-**Verify installation:**
-```bash
-k6 version
-```
-
-### Setup Test Environment
+### Start Services
 
 ```bash
-cd aps-backend
-
-# Create test directories
-mkdir -p tests/k6/scenarios
-mkdir -p tests/k6/config
-mkdir -p tests/k6/utils
-mkdir -p tests/results/rest
-mkdir -p tests/results/graphql
-mkdir -p scripts
-
-# Make scripts executable
-chmod +x tests/k6/run-all.sh
-chmod +x scripts/monitor-resources.sh
-chmod +x scripts/compare-results.js
-
-# Start backend services
-docker-compose up -d
-
-# Verify services are healthy
+docker-compose up -d --build
 docker-compose ps
 ```
 
----
-
-## Running Tests
-
-### Quick Start (All Scenarios)
+### Verify Authentication Mode
 
 ```bash
-# Run all 6 scenarios for both REST and GraphQL
-./tests/k6/run-all.sh
+docker exec aps-rest-api printenv DISABLE_OTP
+docker exec aps-graphql-api printenv DISABLE_OTP
 ```
 
-**Duration:** ~60-90 minutes total
-- Each scenario: ~5 minutes
-- 6 scenarios × 2 APIs = 12 test runs
-- Cool-down periods between tests
+Both should return `true`.
 
-### Run Individual Scenario
+### Run One Scenario
 
-**REST:**
+REST:
+
 ```bash
 k6 run tests/k6/scenarios/01-simple-list-rest.js
 ```
 
-**GraphQL:**
+GraphQL:
+
 ```bash
 k6 run tests/k6/scenarios/01-simple-list-graphql.js
 ```
 
-### Custom Load Configuration
-
-Edit `tests/k6/config/rest.config.js` or `graphql.config.js`:
-
-```javascript
-export const LOAD_CONFIGS = {
-  read: {
-    stages: [
-      { duration: '30s', target: 10 },   // Ramp to 10 VUs
-      { duration: '1m', target: 25 },    // Increase to 25
-      { duration: '2m', target: 50 },    // Sustained at 50
-      { duration: '1m', target: 100 },   // Peak at 100
-      { duration: '30s', target: 0 },    // Ramp down
-    ],
-  },
-};
-```
-
-### Monitor Resources During Testing
+### Run All Scenarios
 
 ```bash
-# Monitor for 5 minutes, output to CSV
-./scripts/monitor-resources.sh 300 results/resources.csv all
-
-# Monitor specific container
-./scripts/monitor-resources.sh 300 results/rest-resources.csv aps-rest-api
+./tests/k6/run-all.sh
 ```
 
----
+The runner executes each REST and GraphQL scenario as a pair and writes summary, raw, and resource files under `tests/results/`.
 
-## Analyzing Results
+### Override Target URLs
 
-### Compare REST vs GraphQL
+```bash
+REST_URL=http://localhost:3001/api \
+GRAPHQL_URL=http://localhost:3002/graphql \
+./tests/k6/run-all.sh
+```
+
+## 9. Resource Monitoring
+
+The full runner starts resource monitoring automatically. To run it manually:
+
+```bash
+./scripts/monitor-resources.sh 300 tests/results/resources.csv all
+```
+
+To monitor only one API container:
+
+```bash
+./scripts/monitor-resources.sh 300 tests/results/rest-only.csv aps-rest-api
+./scripts/monitor-resources.sh 300 tests/results/graphql-only.csv aps-graphql-api
+```
+
+Manual Docker observation:
+
+```bash
+docker stats aps-rest-api aps-graphql-api
+```
+
+## 10. Result Files
+
+The benchmark writes files in this structure:
+
+```text
+tests/results/
+  rest/
+    01-simple-list-raw.json
+    01-simple-list-summary.json
+    01-simple-list-resources.csv
+    02-list-with-relations-raw.json
+    02-list-with-relations-summary.json
+    02-list-with-relations-resources.csv
+    ...
+  graphql/
+    01-simple-list-raw.json
+    01-simple-list-summary.json
+    01-simple-list-resources.csv
+    ...
+```
+
+Some individual k6 scripts also define `handleSummary` outputs without the `-summary` suffix. For formal comparison, use the `*-summary.json` files generated by `run-all.sh`.
+
+## 11. Analysis
+
+Run the comparison script:
 
 ```bash
 node scripts/compare-results.js
 ```
 
-**Output example:**
-```
-================================================================================
-Scenario: Simple List Query
-================================================================================
+The script compares each scenario across REST and GraphQL using:
 
-📊 Performance Metrics:
---------------------------------------------------------------------------------
-Metric                   REST           GraphQL        Difference
---------------------------------------------------------------------------------
-Avg Latency (ms)         45.23          48.91          +8.14% ✗
-P50 Latency (ms)         42.10          46.33          +10.05% ✗
-P95 Latency (ms)         89.45          102.78         +14.90% ✗
-P99 Latency (ms)         156.23         178.90         +14.51% ✗
---------------------------------------------------------------------------------
-Requests/sec             523.45         498.23         -4.82% ✓
-Total Requests           157035         149468         
---------------------------------------------------------------------------------
-Error Rate (%)           0.12           0.09           -25.00% ✓
---------------------------------------------------------------------------------
-Data Received (MB)       45.23          52.78          +16.69% ✗
-Data Sent (MB)           2.34           3.12           +33.33% ✗
---------------------------------------------------------------------------------
+- Average latency.
+- Median latency.
+- p90 latency.
+- p95 latency.
+- Requests per second.
+- Total requests.
+- Error rate.
+- Average CPU usage.
+- Average memory usage.
+- Data received.
+- Data sent.
 
-🏆 Analysis:
-   • REST is 14.9% faster (p95 latency)
-   • REST handles 5.1% more requests/sec
-   • GraphQL transfers 17.8% more data
-```
+For direct inspection:
 
-### View Raw Results
-
-**k6 Summary:**
 ```bash
-cat tests/results/rest/01-simple-list-summary.json
+jq '.metrics.http_req_duration' tests/results/rest/01-simple-list-summary.json
+jq '.metrics.http_reqs' tests/results/graphql/01-simple-list-summary.json
+head tests/results/rest/01-simple-list-resources.csv
 ```
 
-**Resource Usage:**
+## 12. Research Methodology
+
+### Independent Variable
+
+The independent variable is API architecture:
+
+- REST.
+- GraphQL.
+
+### Dependent Variables
+
+The dependent variables are:
+
+- Latency.
+- Throughput.
+- Error rate.
+- CPU usage.
+- Memory usage.
+- Network transfer.
+- Payload size.
+
+### Controlled Variables
+
+The controlled variables are:
+
+- Hardware.
+- Docker resource limits.
+- Database and seed data.
+- Authentication mode.
+- Business logic.
+- Load profile.
+- Test duration.
+- Test users.
+
+### Recommended Repetition
+
+For formal reporting, run the full scenario set at least three times. Use the median value for the main comparison table, or report each run separately with a clear explanation of variation.
+
+## 13. Reporting Guidance
+
+A formal report should include:
+
+- Test environment description.
+- API versions or git commit.
+- Database seed description.
+- Docker resource limits.
+- Authentication setting, including `DISABLE_OTP=true`.
+- Load profile.
+- Scenario definitions.
+- Result tables for latency, throughput, error rate, CPU, memory, and data transfer.
+- Notes on booking conflicts in Scenario 06.
+- Limitations and threats to validity.
+
+Suggested table format:
+
+| Scenario | API | Avg latency | P95 latency | Requests/sec | Error rate | Avg CPU | Avg memory |
+|----------|-----|-------------|-------------|--------------|------------|---------|------------|
+| 01 Simple list | REST | | | | | | |
+| 01 Simple list | GraphQL | | | | | | |
+
+## 14. Troubleshooting
+
+### Authenticated scenarios fail
+
+Confirm that `DISABLE_OTP=true` is active in both API containers. Also verify that the test users in `tests/k6/config/config.js` exist in the database.
+
+### Login returns an OTP session
+
+The application is running with OTP enabled. Set `DISABLE_OTP=true`, recreate the API containers, and repeat the login check.
+
+### High error rate in Scenario 06
+
+Booking conflicts are expected up to the configured threshold. Investigate if the failures are 500-level errors, authentication errors, validation errors, or conflict rates above the threshold.
+
+### Results are inconsistent
+
+Check for background system load, database contention, container restarts, thermal throttling, or changes in seed data. Repeat the run and compare medians.
+
+### Resource CSV is empty
+
+Confirm the container name passed to `monitor-resources.sh` matches the running Docker container:
+
 ```bash
-cat tests/results/rest/01-simple-list-resources.csv
+docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
-### Export for Thesis
+## 15. File Reference
 
-All results are in JSON/CSV format for easy import into:
-- Excel/Google Sheets
-- Python (pandas)
-- R (ggplot2)
-- LaTeX tables
+| Path | Purpose |
+|------|---------|
+| `tests/k6/config/config.js` | Shared k6 endpoints, users, stages, thresholds |
+| `tests/k6/utils/auth.js` | Login and authorization helpers |
+| `tests/k6/utils/data.js` | Test data helpers |
+| `tests/k6/scenarios/` | REST and GraphQL scenario scripts |
+| `tests/k6/run-all.sh` | Paired benchmark runner |
+| `scripts/monitor-resources.sh` | Docker resource collection |
+| `scripts/compare-results.js` | REST vs GraphQL result comparison |
+| `tests/results/` | Generated benchmark outputs |
 
----
+## 16. References
 
-## Troubleshooting
-
-### Issue: k6 not found
-
-**Solution:**
-```bash
-# Verify installation
-k6 version
-
-# Reinstall if needed
-choco install k6  # Windows
-brew install k6    # macOS
-```
-
-### Issue: Services not healthy
-
-**Solution:**
-```bash
-# Check service status
-docker-compose ps
-
-# View logs
-docker-compose logs rest-api
-docker-compose logs graphql-api
-
-# Restart if needed
-docker-compose restart
-```
-
-### Issue: High error rates
-
-**Possible causes:**
-1. Database connection issues
-2. Too many concurrent users
-3. Conflicts in booking creation (expected for Scenario 5)
-
-**Solution:**
-```bash
-# Check database
-docker-compose logs postgres
-
-# Reduce load in config files
-# Edit LOAD_CONFIGS.read.stages in config files
-```
-
-### Issue: Inconsistent results
-
-**Solution:**
-- Ensure no other processes are running
-- Run tests during low system load
-- Increase cool-down periods between tests
-- Run multiple iterations and average results
-
----
-
-## Research Methodology
-
-### Experimental Controls
-
-To ensure **scientifically valid comparison**:
-
-1. **Identical Hardware**
-   - Same Docker host
-   - Same resource limits (1 CPU, 512MB RAM per container)
-   - Same network configuration
-
-2. **Identical Load Patterns**
-   - Same VU counts
-   - Same test duration
-   - Same ramp-up/ramp-down
-
-3. **Identical Data**
-   - Same database
-   - Same seed data
-   - Same test users
-
-4. **Identical Business Logic**
-   - Both APIs use same service layer
-   - Same validation rules
-   - Same conflict detection
-
-### Variables
-
-**Independent Variable:**
-- API architecture (REST vs GraphQL)
-
-**Dependent Variables:**
-- Response time (latency)
-- Throughput (requests/sec)
-- Error rate
-- CPU usage
-- Memory usage
-- Network I/O
-
-**Controlled Variables:**
-- Hardware resources
-- Database
-- Business logic
-- Load patterns
-- Test data
-
-### Statistical Validity
-
-- **Sample Size:** 5-minute sustained load per scenario
-- **Repetition:** Run each scenario 3 times, report median
-- **Outlier Handling:** P95/P99 percentiles account for outliers
-- **Error Margin:** Report standard deviation
-
-### Reporting Results
-
-For your thesis (Chapter 4 - Results):
-
-**Table IV: Performance Metrics Comparison**
-```
-Scenario              | Metric        | REST    | GraphQL | Difference
----------------------|---------------|---------|---------|------------
-Simple List          | P95 Latency   | 89.45ms | 102.78ms| +14.90%
-                     | Throughput    | 523 rps | 498 rps | -4.82%
-...
-```
-
-**Table V: Resource Utilization Comparison**
-```
-Scenario              | Metric        | REST    | GraphQL | Difference
----------------------|---------------|---------|---------|------------
-Simple List          | Avg CPU       | 45.2%   | 52.1%   | +15.26%
-                     | Avg Memory    | 234 MB  | 256 MB  | +9.40%
-...
-```
-
----
-
-## File Locations
-
-### Test Scripts
-- `tests/k6/scenarios/` - All 6 scenarios × 2 APIs = 12 test files
-- `tests/k6/config/` - Load configurations
-- `tests/k6/utils/` - Helper functions (auth, data generation)
-
-### Results
-- `tests/results/rest/` - REST API results (JSON + CSV)
-- `tests/results/graphql/` - GraphQL API results (JSON + CSV)
-
-### Scripts
-- `tests/k6/run-all.sh` - Run all tests
-- `scripts/monitor-resources.sh` - Resource monitoring
-- `scripts/compare-results.js` - Result analysis
-
----
-
-## Next Steps
-
-After running all tests:
-
-1. **Analyze Results**
-   ```bash
-   node scripts/compare-results.js
-   ```
-
-2. **Generate Charts**
-   - Import JSON files into Excel/Python/R
-   - Create latency comparison charts
-   - Create throughput bar charts
-   - Create resource usage line charts
-
-3. **Statistical Analysis**
-   - Calculate mean, median, std dev
-   - Perform t-tests for significance
-   - Create confidence intervals
-
-4. **Write Chapter 4 (Results)**
-   - Report all metrics in tables
-   - Include charts/figures
-   - Discuss findings
-   - Analyze trade-offs
-
----
-
-## References
-
-- k6 Documentation: https://k6.io/docs/
-- Docker Stats: https://docs.docker.com/engine/reference/commandline/stats/
-- Research Methodology: See thesis Chapter 3
-
----
-
-**Questions?** Check troubleshooting section or review test scripts for implementation details.
+- k6 documentation: https://k6.io/docs/
+- Docker stats documentation: https://docs.docker.com/reference/cli/docker/container/stats/
+- GraphQL specification: https://spec.graphql.org/
