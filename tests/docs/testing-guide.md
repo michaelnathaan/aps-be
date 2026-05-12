@@ -1,10 +1,68 @@
 # Step-by-Step Testing Guide
 
-This guide explains how to run the REST and GraphQL load tests for the Apartment Booking System backend. It is intended for repeatable thesis or benchmark runs, so the steps emphasize environment consistency, authentication configuration, result collection, and documentation discipline.
+This guide is written for another reader who wants to understand the benchmark project and reproduce or inspect the REST versus GraphQL load test results. It covers two workflows:
+
+- Analyze the provided benchmark result archive without waiting for the full test suite.
+- Run the benchmark from the APIs and generate a fresh result set.
+
+Use the provided archive first if the goal is to review the existing benchmark data quickly. Run the full benchmark only when the goal is to reproduce the experiment on a new machine or after changing the code, database, or test configuration.
+
+## Project Testing Structure
+
+The load testing files are organized as follows:
+
+| Path | Purpose |
+|------|---------|
+| `tests/results.zip` | Provided benchmark results for immediate analysis |
+| `tests/results/` | Directory where extracted or newly generated results are read from |
+| `tests/k6/scenarios/` | REST and GraphQL k6 scenario scripts |
+| `tests/k6/config/config.js` | Shared URLs, test users, load stages, and thresholds |
+| `tests/k6/utils/` | Authentication and test data helpers |
+| `tests/k6/run-all.sh` | Script that runs all REST and GraphQL scenarios as pairs |
+| `scripts/monitor-resources.sh` | Docker resource monitoring script |
+| `scripts/compare-results.js` | Script that compares REST and GraphQL result files |
+
+## Fast Path: Analyze the Provided Results
+
+The repository includes `tests/results.zip` so a reader can inspect the benchmark output without running all load tests. This is the recommended first step for reviewers, supervisors, or collaborators who only need to understand the results.
+
+Only Node.js is required for this path. Docker, k6, the database, and running API containers are not required unless the reader wants to generate new results.
+
+From the repository root:
+
+```bash
+mkdir -p tests/results
+unzip -o tests/results.zip -d tests/results
+node scripts/compare-results.js
+```
+
+The archive contains `rest/` and `graphql/` directories. After extraction, the result directory should look like this:
+
+```text
+tests/results/
+  rest/
+    01-simple-list-summary.json
+    01-simple-list-resources.csv
+    ...
+  graphql/
+    01-simple-list-summary.json
+    01-simple-list-resources.csv
+    ...
+```
+
+If `tests/results/` already contains a result set that should be preserved, move it before extracting:
+
+```bash
+mv tests/results tests/results-local-backup
+mkdir -p tests/results
+unzip -o tests/results.zip -d tests/results
+```
+
+After running `node scripts/compare-results.js`, the terminal prints a scenario-by-scenario comparison of latency, throughput, error rate, CPU, memory, and transferred data.
 
 ## Prerequisites
 
-Before running the tests, confirm that the following are available:
+The full benchmark requires more setup than the fast path. Before running new tests, confirm that the following are available:
 
 - Docker and Docker Compose are installed.
 - The database service is available and seeded with the expected APS test data.
@@ -32,7 +90,7 @@ DISABLE_OTP=true
 From the backend repository:
 
 ```bash
-cd aps-backend
+cd aps-be
 docker-compose up -d --build
 docker-compose ps
 ```
@@ -198,7 +256,7 @@ The monitor records CPU, memory, and network statistics every five seconds.
 
 ## Step 7: Analyze Results
 
-After the full run completes:
+After extracting `tests/results.zip` or completing a fresh benchmark run:
 
 ```bash
 node scripts/compare-results.js
@@ -233,7 +291,7 @@ jq '.metrics.http_req_failed.rate' tests/results/rest/01-simple-list-summary.jso
 
 ## Step 8: Organize Result Files
 
-After a successful full run, the expected structure is:
+The comparison script expects this structure, whether the files came from `tests/results.zip` or a fresh run:
 
 ```text
 tests/results/
@@ -250,6 +308,8 @@ tests/results/
 ```
 
 Keep the raw JSON and CSV files. They provide the evidence needed to reproduce tables, charts, and statistical analysis.
+
+For distributed documentation, include `tests/results.zip` when sharing the project. It allows another person to verify the comparison output without repeating the long-running benchmark.
 
 For formal reporting, create a run log with:
 

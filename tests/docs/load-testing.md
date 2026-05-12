@@ -1,6 +1,6 @@
 # Load Testing Documentation
 
-This document describes the load testing methodology for comparing the REST and GraphQL implementations of the Apartment Booking System backend. It defines the test environment, scenario design, metrics, execution process, and reporting approach used for formal benchmark analysis.
+This document explains the load testing design for the Apartment Booking System backend. It is intended for readers who did not build the project themselves but need to understand the REST versus GraphQL benchmark, inspect the supplied results, or run the tests independently.
 
 ## 1. Overview
 
@@ -16,7 +16,56 @@ The benchmark is designed to answer the following questions:
 
 The suite uses k6 for traffic generation, Docker resource statistics for container-level resource monitoring, and a Node.js comparison script for result aggregation.
 
-## 2. Authentication Requirement
+## 2. How to Use This Documentation
+
+There are two valid ways to use the testing materials.
+
+### Option A: Inspect the Provided Result Set
+
+Use this path when the goal is to understand the project results quickly. The repository includes:
+
+```text
+tests/results.zip
+```
+
+This archive contains the generated REST and GraphQL result files from a completed benchmark run. A reader can extract it and run the comparison script without starting Docker containers or waiting for the full benchmark.
+
+Commands:
+
+```bash
+mkdir -p tests/results
+unzip -o tests/results.zip -d tests/results
+node scripts/compare-results.js
+```
+
+The archive is structured with `rest/` and `graphql/` directories at its root, so it must be extracted into `tests/results`.
+
+Use this option for:
+
+- Reviewing the existing benchmark output.
+- Demonstrating how result analysis works.
+- Preparing tables from the supplied experiment.
+- Avoiding the full benchmark runtime, which is usually more than one hour.
+
+### Option B: Run a New Benchmark
+
+Use this path when the goal is to reproduce the experiment on another machine or after changing code, data, Docker limits, or k6 configuration.
+
+This option requires:
+
+- Docker and Docker Compose.
+- A seeded PostgreSQL database.
+- Running REST and GraphQL API containers.
+- k6.
+- `DISABLE_OTP=true` for direct token login.
+
+The full command is:
+
+```bash
+./tests/k6/run-all.sh
+```
+
+## 3. Authentication Requirement
 
 The k6 scenarios authenticate by calling login with a phone number and using the returned JWT token:
 
@@ -51,7 +100,9 @@ If `.env` is changed, recreate the API containers:
 docker-compose up -d --force-recreate rest-api graphql-api
 ```
 
-## 3. Test Environment
+This authentication configuration is only required for running new tests. It is not required when analyzing the supplied `tests/results.zip` archive.
+
+## 4. Test Environment
 
 ### Required Services
 
@@ -88,7 +139,7 @@ The following settings should be recorded for each formal run:
 
 For Docker Compose runs, `docker-compose.yml` passes `DISABLE_OTP`, JWT, database, logging, and OTP provider variables into both API services.
 
-## 4. Experimental Controls
+## 5. Experimental Controls
 
 The comparison is meaningful only if the following controls remain stable:
 
@@ -102,7 +153,7 @@ The comparison is meaningful only if the following controls remain stable:
 
 The current Docker Compose configuration assigns equivalent resource limits to both API containers.
 
-## 5. Load Profile
+## 6. Load Profile
 
 The shared k6 configuration is defined in:
 
@@ -129,7 +180,7 @@ Default thresholds:
 
 Scenario 06 uses write-specific thresholds because booking creation can include expected conflicts.
 
-## 6. Test Scenarios
+## 7. Test Scenarios
 
 ### Scenario 01: Simple List
 
@@ -173,7 +224,7 @@ GraphQL:
 
 ```graphql
 query GetUserBookings($userId: Int!, $limit: Int!, $offset: Int!) {
-  userBookings(userId: $userId, limit: $limit, offset: $offset) {
+  userBookingsGeneric(userId: $userId, limit: $limit, offset: $offset) {
     id
     bookingDate
     startTime
@@ -312,7 +363,7 @@ mutation CreateBooking($input: CreateBookingInput!) {
 
 The scenario creates bookings using test users and deletes successful bookings with an admin token. Some booking conflicts can occur under concurrent load and should be analyzed separately from system failures.
 
-## 7. Metrics Collected
+## 8. Metrics Collected
 
 ### k6 Metrics
 
@@ -357,7 +408,9 @@ The resource monitor records:
 
 Resource files are written as CSV.
 
-## 8. Running Tests
+## 9. Running Tests
+
+This section is for readers who want to generate a fresh benchmark result set. Readers who only need to inspect the supplied results can use `tests/results.zip` as described in Section 2.
 
 ### Start Services
 
@@ -405,7 +458,7 @@ GRAPHQL_URL=http://localhost:3002/graphql \
 ./tests/k6/run-all.sh
 ```
 
-## 9. Resource Monitoring
+## 10. Resource Monitoring
 
 The full runner starts resource monitoring automatically. To run it manually:
 
@@ -426,9 +479,9 @@ Manual Docker observation:
 docker stats aps-rest-api aps-graphql-api
 ```
 
-## 10. Result Files
+## 11. Result Files
 
-The benchmark writes files in this structure:
+Both the provided archive and a fresh benchmark run use this structure:
 
 ```text
 tests/results/
@@ -449,7 +502,24 @@ tests/results/
 
 Some individual k6 scripts also define `handleSummary` outputs without the `-summary` suffix. For formal comparison, use the `*-summary.json` files generated by `run-all.sh`.
 
-## 11. Analysis
+### Using the Provided Archive
+
+To restore the supplied result files:
+
+```bash
+mkdir -p tests/results
+unzip -o tests/results.zip -d tests/results
+```
+
+If the reader already has their own generated results, they should back them up before extracting the archive:
+
+```bash
+mv tests/results tests/results-local-backup
+mkdir -p tests/results
+unzip -o tests/results.zip -d tests/results
+```
+
+## 12. Analysis
 
 Run the comparison script:
 
@@ -479,7 +549,7 @@ jq '.metrics.http_reqs' tests/results/graphql/01-simple-list-summary.json
 head tests/results/rest/01-simple-list-resources.csv
 ```
 
-## 12. Research Methodology
+## 13. Research Methodology
 
 ### Independent Variable
 
@@ -517,7 +587,7 @@ The controlled variables are:
 
 For formal reporting, run the full scenario set at least three times. Use the median value for the main comparison table, or report each run separately with a clear explanation of variation.
 
-## 13. Reporting Guidance
+## 14. Reporting Guidance
 
 A formal report should include:
 
@@ -526,6 +596,7 @@ A formal report should include:
 - Database seed description.
 - Docker resource limits.
 - Authentication setting, including `DISABLE_OTP=true`.
+- Whether the analysis used the provided `tests/results.zip` archive or a newly generated result set.
 - Load profile.
 - Scenario definitions.
 - Result tables for latency, throughput, error rate, CPU, memory, and data transfer.
@@ -539,7 +610,24 @@ Suggested table format:
 | 01 Simple list | REST | | | | | | |
 | 01 Simple list | GraphQL | | | | | | |
 
-## 14. Troubleshooting
+## 15. Troubleshooting
+
+### Comparison script reports missing files
+
+The result files are not in the expected location. Extract the provided archive into `tests/results`:
+
+```bash
+mkdir -p tests/results
+unzip -o tests/results.zip -d tests/results
+node scripts/compare-results.js
+```
+
+The expected paths include:
+
+```text
+tests/results/rest/01-simple-list-summary.json
+tests/results/graphql/01-simple-list-summary.json
+```
 
 ### Authenticated scenarios fail
 
@@ -565,10 +653,11 @@ Confirm the container name passed to `monitor-resources.sh` matches the running 
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
-## 15. File Reference
+## 16. File Reference
 
 | Path | Purpose |
 |------|---------|
+| `tests/results.zip` | Provided benchmark result archive for immediate analysis |
 | `tests/k6/config/config.js` | Shared k6 endpoints, users, stages, thresholds |
 | `tests/k6/utils/auth.js` | Login and authorization helpers |
 | `tests/k6/utils/data.js` | Test data helpers |
@@ -578,7 +667,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}"
 | `scripts/compare-results.js` | REST vs GraphQL result comparison |
 | `tests/results/` | Generated benchmark outputs |
 
-## 16. References
+## 17. References
 
 - k6 documentation: https://k6.io/docs/
 - Docker stats documentation: https://docs.docker.com/reference/cli/docker/container/stats/
