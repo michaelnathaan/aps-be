@@ -89,8 +89,6 @@ GRAPHQL_URL=http://localhost:3002/graphql
 REST_URL=http://localhost:3001/api
 
 DISABLE_OTP=true
-BYPASS_OTP_NUMBER=+6281234567890
-BYPASS_OTP_CODE=0000
 ```
 
 For load testing, `DISABLE_OTP=true` is required because the k6 helpers authenticate by phone number and expect a JWT token directly from login. For normal OTP behavior, set `DISABLE_OTP=false`.

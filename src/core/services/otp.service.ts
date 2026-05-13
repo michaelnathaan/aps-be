@@ -34,11 +34,7 @@ export class OTPService {
         const { phoneNumber } = credentials;
         const sessionId = crypto.randomUUID();
 
-        const isBypass = phoneNumber === process.env.BYPASS_OTP_NUMBER;
-
-        const otp = isBypass
-            ? process.env.BYPASS_OTP_CODE!
-            : Math.floor(1000 + Math.random() * 9000).toString();
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
         const expires = Date.now() + 5 * 60 * 1000;
 
@@ -56,12 +52,10 @@ export class OTPService {
         const { phoneNumber } = credentials;
         const { sessionId, otp, expires } = this.generateSession(credentials);
 
-        if (phoneNumber != process.env.BYPASS_OTP_NUMBER) {
-            this.sendOtp({
-                phoneNumber: phoneNumber,
-                otp: otp,
-            })
-        }
+        this.sendOtp({
+            phoneNumber: phoneNumber,
+            otp: otp,
+        })
 
         return { sessionId, expires };
     }
@@ -75,12 +69,10 @@ export class OTPService {
 
         const { phoneNumber, sessionId: sessionIdNew, otp, expires } = this.generateSession({ phoneNumber: old.phoneNumber })
 
-        if (phoneNumber != process.env.BYPASS_OTP_NUMBER) {
-            this.sendOtp({
-                phoneNumber: phoneNumber,
-                otp: otp,
-            })
-        }
+        this.sendOtp({
+            phoneNumber: phoneNumber,
+            otp: otp,
+        })
 
         return { phoneNumber, sessionId: sessionIdNew, expires };
     }
