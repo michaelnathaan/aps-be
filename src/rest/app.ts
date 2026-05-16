@@ -9,6 +9,7 @@ import facilitiesRoutes from './routes/facilities.routes';
 import bookingsRoutes from './routes/bookings.routes';
 import usersRoutes from './routes/users.routes';
 import logger from '../utils/logger';
+import path from 'path';
 
 dotenv.config();
 
@@ -24,6 +25,11 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(
+    "/uploads",
+    express.static(path.join(process.cwd(), "uploads"))
+);
 
 // app.use(requestLogger);
 
