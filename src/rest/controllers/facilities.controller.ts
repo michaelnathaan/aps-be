@@ -25,6 +25,25 @@ export class FacilitiesController {
     }
   }
 
+  async getAllFacilitiesIncludingInactive(
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const facilities = await facilityService.getAllFacilitiesIncludingInactive();
+
+      const formatted = facilities.map((facility) => ({
+        ...facility,
+        imageUrl: `/uploads/facilities/${facility.id}.webp`,
+      }));
+
+      res.status(200).json(formatted);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getFacilityById(
     req: Request,
     res: Response,
@@ -110,6 +129,8 @@ export class FacilitiesController {
           .toFile(outputPath);
       }
 
+
+
       res.status(201).json({
         ...facility,
         imageUrl: `/uploads/facilities/${facility.id}.webp`,
@@ -126,7 +147,7 @@ export class FacilitiesController {
   ): Promise<void> {
     try {
       const id = parseInt(req.params.id);
-
+      console.log("Received request to create facility with body:", req.body);
       const data = validate(updateFacilitySchema, {
         ...req.body,
         ...(req.body.pricePerHour && {
@@ -137,6 +158,7 @@ export class FacilitiesController {
         }),
       });
 
+      console.log("Creating facility with data:", data);
       const facility = await facilityService.updateFacility(id, data);
 
       // Replace image if uploaded

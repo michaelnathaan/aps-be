@@ -12,6 +12,11 @@ router.get('/', (req, res, next) =>
   facilitiesController.getAllFacilities(req, res, next)
 );
 
+// GET /api/facilities/inactive — admin only
+router.get('/all', authenticate, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), (req, res, next) =>
+  facilitiesController.getAllFacilitiesIncludingInactive(req, res, next)
+);
+
 // POST /api/facilities — admin only
 
 router.post(

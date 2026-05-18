@@ -8,6 +8,10 @@ export class FacilityService {
     return await facilitiesQueries.findAll();
   }
 
+  async getAllFacilitiesIncludingInactive(): Promise<Facility[]> {
+    return await facilitiesQueries.findAllIncludingInactive();
+  }
+
   async getFacilityById(id: number): Promise<Facility> {
     const facility = await facilitiesQueries.findById(id);
     if (!facility) throw new NotFoundError('Facility', id);
