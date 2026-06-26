@@ -1,286 +1,228 @@
 #!/usr/bin/env node
 /**
  * Compare REST vs GraphQL Load Testing Results
- * Generates comparison tables for thesis
+ * Reads *-aggregated.json produced by aggregate-results.js
+ *
+ * Reports:
+ *   • mean ± 95% CI for every metric
+ *   • whether the difference is statistically significant
+ *     (non-overlapping 95% CIs → flagged as significant)
+ *   • winner per scenario per category
+ *   • overall winner tally
+ *
+ * Throughput (requests/sec) is intentionally excluded: under a fixed VU
+ * workload the k6 scheduler caps concurrency, so req/sec reflects the test
+ * configuration rather than architectural efficiency.
+ *
+ * Usage: node scripts/compare-results.js
  */
 
-const fs = require('fs');
+'use strict';
+
+const fs   = require('fs');
 const path = require('path');
 
 const SCENARIOS = [
-  { id: '01-simple-list', name: 'Simple List Query' },
-  { id: '02-list-with-relations', name: 'List with Relations (REST JOIN vs GraphQL Data Loader)' },
-  { id: '03-filtered-slots', name: 'Filtered Slot Availability' },
-  { id: '04-generic-nested-query', name: 'Generic Nested User Dashboard (REST Client Aggregation vs GraphQL Data Loader)' },
-  { id: '05-optimized-nested-query', name: 'Optimized Nested User Dashboard (Both using joins)' },
-  { id: '06-booking-creation', name: 'Booking Creation (Write)' },
+  { id: '01-simple-list',            name: 'Simple List Query' },
+  { id: '02-list-with-relations',    name: 'List with Relations' },
+  { id: '03-filtered-slots',         name: 'Filtered Slot Availability' },
+  { id: '04-generic-nested-query',   name: 'Generic Nested User Dashboard' },
+  { id: '05-optimized-nested-query', name: 'Optimized Nested User Dashboard' },
+  { id: '06-booking-creation',       name: 'Booking Creation (Write)' },
 ];
 
-function loadResults(api, scenario) {
-  const filePath = path.join(__dirname, `../tests/results/${api}/${scenario}-summary.json`);
-  
-  if (!fs.existsSync(filePath)) {
-    console.error(`File not found: ${filePath}`);
+function loadAggregated(api, scenarioId) {
+  const p = path.join(
+    __dirname, `../tests/results/${api}/${scenarioId}-aggregated.json`
+  );
+  if (!fs.existsSync(p)) {
+    console.error(`  File not found: ${p}`);
     return null;
   }
-  
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-function loadResources(api, scenario) {
-  const filePath = path.join(__dirname, `../tests/results/${api}/${scenario}-resources.csv`);
-  
-  if (!fs.existsSync(filePath)) {
-    return { avgCpu: 0, avgMem: 0 };
-  }
-
-  const content = fs.readFileSync(filePath, 'utf8');
-  const lines = content.trim().split('\n').slice(1); // Skip header
-
-  let totalCpu = 0;
-  let totalMem = 0;
-
-  lines.forEach(line => {
-    const cols = line.split(',');
-    totalCpu += parseFloat(cols[2]); // cpu_percent
-    totalMem += parseFloat(cols[5]); // mem_usage_percent
-  });
-
-  return {
-    avgCpu: totalCpu / lines.length,
-    avgMem: totalMem / lines.length
-  };
+function isSignificant(a, b) {
+  return a.ci95_hi < b.ci95_lo || b.ci95_hi < a.ci95_lo;
 }
 
-function extractMetrics(data) {
-  const metrics = data.metrics;
-  
-  const errorRate = (metrics.http_req_failed && metrics.http_req_failed.value !== undefined) 
-    ? metrics.http_req_failed.value * 100 
-    : 0;
-
-  return {
-    // Response Time
-    avgLatency: metrics.http_req_duration.avg,
-    p50Latency: metrics.http_req_duration.med,
-    p90Latency: metrics.http_req_duration['p(90)'],
-    p95Latency: metrics.http_req_duration['p(95)'],
-    
-    // Throughput
-    requestsPerSec: metrics.http_reqs.rate,
-    totalRequests: metrics.http_reqs.count,
-    
-    // Error Rate
-    failedRequests: errorRate,
-    
-    // Data Transfer
-    dataReceived: metrics.data_received.count / (1024 * 1024),
-    dataSent: metrics.data_sent.count / (1024 * 1024),
-  };
+function fmtStat(s) {
+  return `${s.mean.toFixed(2)} ± ${s.ci95.toFixed(2)}`;
 }
 
-function compareScenario(scenario) {
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`Scenario: ${scenario.name}`);
-  console.log('='.repeat(80));
-  
-  const restData = loadResults('rest', scenario.id);
-  const graphqlData = loadResults('graphql', scenario.id);
-  // For resource
-  const restRes = loadResources('rest', scenario.id);
-  const graphqlRes = loadResources('graphql', scenario.id);
+function pctDiff(gMean, rMean) {
+  if (rMean === 0) return 0;
+  return ((gMean - rMean) / rMean) * 100;
+}
 
-  if (!restData || !graphqlData || !restRes || !graphqlRes) {
-    console.log('Missing data for this scenario\n');
+function sigTag(sig) {
+  return sig ? ' [*]' : '    ';
+}
+
+function row(label, rest, graphql, lowerIsBetter = true) {
+  if (!rest || !graphql) {
+    console.log(
+      label.padEnd(26) + '(metric not available)'.padEnd(22) + ''
+    );
     return null;
   }
-  
-  const restMetrics = extractMetrics(restData);
-  const graphqlMetrics = extractMetrics(graphqlData);
-  
-  // Print comparison table
-  console.log('\nPerformance Metrics:');
-  console.log('-'.repeat(80));
+
+  const sig  = isSignificant(rest, graphql);
+  const diff = pctDiff(graphql.mean, rest.mean);
+
+  const graphqlWins = lowerIsBetter ? (diff < 0) : (diff > 0);
+  const neutral     = Math.abs(diff) < 5;
+
+  const symbol = neutral ? '≈' : (graphqlWins ? '✓ GQL' : '✓ REST');
+  const sign   = diff > 0 ? '+' : '';
+
   console.log(
-    'Metric'.padEnd(25) + 
-    'REST'.padEnd(15) + 
-    'GraphQL'.padEnd(15) + 
-    'Difference'
+    label.padEnd(26) +
+    fmtStat(rest).padEnd(22) +
+    fmtStat(graphql).padEnd(22) +
+    `${sign}${diff.toFixed(1)}%`.padEnd(10) +
+    sigTag(sig) +
+    symbol
   );
-  console.log('-'.repeat(80));
-  
-  // Response Time
-  printMetric('Avg Latency (ms)', restMetrics.avgLatency, graphqlMetrics.avgLatency);
-  printMetric('P50 Latency (ms)', restMetrics.p50Latency, graphqlMetrics.p50Latency);
-  printMetric('P90 Latency (ms)', restMetrics.p90Latency, graphqlMetrics.p90Latency);
-  printMetric('P95 Latency (ms)', restMetrics.p95Latency, graphqlMetrics.p95Latency);
-  
-  console.log('-'.repeat(80));
-  
-  // Throughput
-  printMetric('Requests/sec', restMetrics.requestsPerSec, graphqlMetrics.requestsPerSec);
-  printMetric('Total Requests', restMetrics.totalRequests, graphqlMetrics.totalRequests, false);
-  
-  console.log('-'.repeat(80));
-  
-  // Error Rate
-  printMetric('Error Rate (%)', restMetrics.failedRequests, graphqlMetrics.failedRequests);
-  
-  console.log('-'.repeat(80));
-  
-  // Resource
-  console.log('\nResource Utilization:');
-  console.log('-'.repeat(80));
 
-  printMetric('Avg CPU Usage (%)', restRes.avgCpu, graphqlRes.avgCpu);
-  printMetric('Avg Memory Usage (%)', restRes.avgMem, graphqlRes.avgMem);
-  
-  // Network and data
-  console.log('\nNetwork & Data:');
-  console.log('-'.repeat(80));
-  printMetric('Data Received (MB)', restMetrics.dataReceived, graphqlMetrics.dataReceived);
-  printMetric('Data Sent (MB)', restMetrics.dataSent, graphqlMetrics.dataSent);
-  console.log('-'.repeat(80));
-  
-  // Winner analysis
-  analyzeWinner(restMetrics, graphqlMetrics, restRes, graphqlRes);
-  
-  return { rest: restMetrics, graphql: graphqlMetrics, restRes: restRes, graphqlRes: graphqlRes};
+  return { graphqlWins: !neutral && graphqlWins, sig, diff };
 }
-
-function printMetric(name, restValue, graphqlValue, showDiff = true) {
-  const restStr = restValue.toFixed(2);
-  const graphqlStr = graphqlValue.toFixed(2);
-  
-  let diffStr = '';
-  if (showDiff && restValue > 0) {
-    const diff = ((graphqlValue - restValue) / restValue * 100);
-    const sign = diff > 0 ? '+' : '';
-    
-    // Logic: For latency/resource, negative is good (✓). For throughput, positive is good.
-    const isGood = name.includes('Requests/sec') ? diff > 0 : diff < 0;
-    const isNeutral = Math.abs(diff) < 5;
-    
-    let emoji = isNeutral ? '≈' : (isGood ? '✓' : '✗');
-    diffStr = `${sign}${diff.toFixed(2)}% ${emoji}`;
-  }
-  
-  console.log(
-    name.padEnd(25) + 
-    restStr.padEnd(15) + 
-    graphqlStr.padEnd(15) + 
-    diffStr
-  );
-}
-
-function analyzeWinner(rest, graphql, restRes, graphqlRes) {
-  console.log('\n🏆 Analysis:');
-  
-  // Helper: ngitung percentile perbedaan based on REST 
-  const getDiff = (g, r) => ((g - r) / r * 100);
-
-  // 1. Latency (Lower is better)
-  const latDiff = getDiff(graphql.p95Latency, rest.p95Latency);
-  if (latDiff > 0) {
-    console.log(`   • REST is ${latDiff.toFixed(1)}% faster (p95 latency)`);
-  } else {
-    console.log(`   • GraphQL is ${Math.abs(latDiff).toFixed(1)}% faster (p95 latency)`);
-  }
-  
-  // 2. Throughput (Higher is better)
-  const throughputDiff = getDiff(graphql.requestsPerSec, rest.requestsPerSec);
-  if (throughputDiff > 0) {
-    console.log(`   • GraphQL handles ${throughputDiff.toFixed(1)}% more requests/sec (throughput)`);
-  } else {
-    console.log(`   • REST handles ${Math.abs(throughputDiff).toFixed(1)}% more requests/sec (throughput)`);
-  }
-  
-  // 3. CPU (Lower is better)
-  const cpuDiff = getDiff(graphqlRes.avgCpu, restRes.avgCpu);
-  if (cpuDiff > 0) {
-    console.log(`   • REST uses ${cpuDiff.toFixed(1)}% less CPU`);
-  } else {
-    console.log(`   • GraphQL uses ${Math.abs(cpuDiff).toFixed(1)}% less CPU`);
-  }
-
-  // 4. Memory (Lower is better)
-  const memDiff = getDiff(graphqlRes.avgMem, restRes.avgMem);
-  if (memDiff > 0) {
-    console.log(`   • REST uses ${memDiff.toFixed(1)}% less Memory`);
-  } else {
-    console.log(`   • GraphQL uses ${Math.abs(memDiff).toFixed(1)}% less Memory`);
-  }
-
-  // 5. Data Transfer (Lower is better)
-  const restTotal = rest.dataReceived + rest.dataSent;
-  const graphqlTotal = graphql.dataReceived + graphql.dataSent;
-  const dataDiff = ((graphqlTotal - restTotal) / restTotal * 100);
-  
-  if (dataDiff > 0) {
-    console.log(`   • REST transfers ${dataDiff.toFixed(1)}% less data total`);
-  } else {
-    console.log(`   • GraphQL transfers ${Math.abs(dataDiff).toFixed(1)}% less data total`);
-  }
-}
-
-// Main execution
-console.log('\n');
-console.log('╔═══════════════════════════════════════════════════════════════╗');
-console.log('║     REST vs GraphQL Performance Comparison                   ║');
-console.log('╚═══════════════════════════════════════════════════════════════╝');
 
 const allResults = {};
 
-SCENARIOS.forEach(scenario => {
-  const result = compareScenario(scenario);
-  if (result) {
-    allResults[scenario.id] = result;
-  }
-});
+console.log('\n');
+console.log('╔══════════════════════════════════════════════════════════════════════════╗');
+console.log('║     REST vs GraphQL — Statistical Performance Comparison                 ║');
+console.log('║     Values shown as  mean ± 95% CI  (across repeated runs)               ║');
+console.log('║     [*] = statistically significant (non-overlapping 95% CIs)            ║');
+console.log('╚══════════════════════════════════════════════════════════════════════════╝');
 
-// Overall summary
-console.log('\n\n' + '='.repeat(80));
-console.log('OVERALL SUMMARY');
-console.log('='.repeat(80));
-
-let winners = {
-  latency: { rest: 0, gql: 0 },
-  throughput: { rest: 0, gql: 0 },
-  cpu: { rest: 0, gql: 0 },
-  memory: { rest: 0, gql: 0 },
-  data: { rest: 0, gql: 0 }
+const header = () => {
+  console.log(
+    'Metric'.padEnd(26) +
+    'REST (mean ± CI95)'.padEnd(22) +
+    'GraphQL (mean ± CI95)'.padEnd(22) +
+    'Δ%'.padEnd(10) +
+    'Sig'.padEnd(7) +
+    'Better'
+  );
+  console.log('─'.repeat(92));
 };
 
-Object.keys(allResults).forEach(scenarioId => {
-  const { rest, graphql, restRes, graphqlRes } = allResults[scenarioId];
-  
-  // Latency Winner (Lower is better)
-  if (rest.p95Latency < graphql.p95Latency) winners.latency.rest++;
-  else winners.latency.gql++;
+for (const sc of SCENARIOS) {
+  console.log(`\n${'═'.repeat(92)}`);
+  console.log(`Scenario: ${sc.name}`);
+  console.log(`${'═'.repeat(92)}`);
 
-  // Throughput Winner (Higher is better)
-  if (rest.requestsPerSec > graphql.requestsPerSec) winners.throughput.rest++;
-  else winners.throughput.gql++;
+  const rd = loadAggregated('rest',    sc.id);
+  const gd = loadAggregated('graphql', sc.id);
 
-  // CPU Winner (Lower is better)
-  if (restRes.avgCpu < graphqlRes.avgCpu) winners.cpu.rest++;
-  else winners.cpu.gql++;
+  if (!rd || !gd) {
+    console.log('  ⚠  Missing aggregated data — run aggregate-results.js first.\n');
+    continue;
+  }
 
-  // Memory Winner (Lower is better)
-  if (restRes.avgMem < graphqlRes.avgMem) winners.memory.rest++;
-  else winners.memory.gql++;
+  const rp = rd.performance;
+  const gp = gd.performance;
+  const rr = rd.resources;
+  const gr = gd.resources;
 
-  // Data Transfer Winner (Lower total is better)
-  const restTotalData = rest.dataReceived + rest.dataSent;
-  const gqlTotalData = graphql.dataReceived + graphql.dataSent;
-  if (restTotalData < gqlTotalData) winners.data.rest++;
-  else winners.data.gql++;
-});
+  console.log(`\n  Runs: REST=${rd.meta.num_runs_successful}  GraphQL=${gd.meta.num_runs_successful}`);
 
-console.log(`\nCategory Winners (Scenarios Won):`);
-console.log('-'.repeat(40));
-console.log(`Latency (P95):      REST: ${winners.latency.rest} | GraphQL: ${winners.latency.gql}`);
-console.log(`Throughput:         REST: ${winners.throughput.rest} | GraphQL: ${winners.throughput.gql}`);
-console.log(`CPU Efficiency:     REST: ${winners.cpu.rest} | GraphQL: ${winners.cpu.gql}`);
-console.log(`Memory Efficiency:  REST: ${winners.memory.rest} | GraphQL: ${winners.memory.gql}`);
-console.log(`Data Efficiency:    REST: ${winners.data.rest} | GraphQL: ${winners.data.gql}`);
+  console.log('\n  Response Time (ms)');
+  header();
+  const r_avg = row('Avg Latency (ms)',  rp.avg_latency_ms,  gp.avg_latency_ms);
+  const r_p50 = row('P50 Latency (ms)',  rp.p50_latency_ms,  gp.p50_latency_ms);
+  const r_p90 = row('P90 Latency (ms)',  rp.p90_latency_ms,  gp.p90_latency_ms);
+  const r_p95 = row('P95 Latency (ms)',  rp.p95_latency_ms,  gp.p95_latency_ms);
+  const r_p99 = row('P99 Latency (ms)',  rp.p99_latency_ms,  gp.p99_latency_ms);
+
+  console.log('\n  Reliability');
+  header();
+  const r_err = row('Error Rate (%)',    rp.error_rate_pct,  gp.error_rate_pct);
+
+  console.log('\n  Resource Utilization');
+  header();
+  const r_cpu = (rr?.avg_cpu_pct && gr?.avg_cpu_pct)
+    ? row('Avg CPU (%)',      rr.avg_cpu_pct, gr.avg_cpu_pct)
+    : null;
+  const r_mem = (rr?.avg_mem_pct && gr?.avg_mem_pct)
+    ? row('Avg Memory (%)',   rr.avg_mem_pct, gr.avg_mem_pct)
+    : null;
+
+  console.log('\n  Network & Data');
+  header();
+  const r_drx = row('Data Received (MB)', rp.data_received_mb, gp.data_received_mb);
+  const r_dtx = row('Data Sent (MB)',     rp.data_sent_mb,     gp.data_sent_mb);
+
+  if (r_p95) {
+    console.log('\n  Key Findings:');
+    const latDir = r_p95.diff < 0 ? 'GraphQL' : 'REST';
+    console.log(
+      `     • P95 latency: ${Math.abs(r_p95.diff).toFixed(1)}% faster for ${latDir}` +
+      (r_p95.sig ? ' — statistically significant' : ' — NOT significant (overlapping CIs)')
+    );
+  }
+
+  allResults[sc.id] = { rp, gp, rr, gr, r_p95, r_cpu, r_mem, r_drx };
+}
+
+console.log('\n\n' + '═'.repeat(92));
+console.log('OVERALL SUMMARY');
+console.log('═'.repeat(92));
+
+const tally = {
+  latency: { rest: 0, gql: 0, sig: 0 },
+  cpu:     { rest: 0, gql: 0, sig: 0 },
+  memory:  { rest: 0, gql: 0, sig: 0 },
+  data:    { rest: 0, gql: 0, sig: 0 },
+};
+
+for (const [, r] of Object.entries(allResults)) {
+  if (r.r_p95) {
+    if (r.rp.p95_latency_ms.mean < r.gp.p95_latency_ms.mean) tally.latency.rest++;
+    else                                                        tally.latency.gql++;
+    if (r.r_p95.sig) tally.latency.sig++;
+  }
+
+  if (r.r_cpu) {
+    if (r.rr.avg_cpu_pct.mean < r.gr.avg_cpu_pct.mean) tally.cpu.rest++;
+    else                                                  tally.cpu.gql++;
+    if (r.r_cpu.sig) tally.cpu.sig++;
+  }
+
+  if (r.r_mem) {
+    if (r.rr.avg_mem_pct.mean < r.gr.avg_mem_pct.mean) tally.memory.rest++;
+    else                                                  tally.memory.gql++;
+    if (r.r_mem.sig) tally.memory.sig++;
+  }
+
+  if (r.r_drx) {
+    const rTot = r.rp.data_received_mb.mean + r.rp.data_sent_mb.mean;
+    const gTot = r.gp.data_received_mb.mean + r.gp.data_sent_mb.mean;
+    if (rTot < gTot) tally.data.rest++;
+    else              tally.data.gql++;
+    if (r.r_drx.sig) tally.data.sig++;
+  }
+}
+
+const N = SCENARIOS.length;
+console.log(`\n  Category          REST wins   GraphQL wins   Sig. differences / ${N} scenarios`);
+console.log('  ' + '─'.repeat(70));
+
+function tallyRow(label, t) {
+  console.log(
+    `  ${label.padEnd(18)}` +
+    `${String(t.rest).padEnd(12)}` +
+    `${String(t.gql).padEnd(15)}` +
+    `${t.sig} of ${N} statistically significant`
+  );
+}
+
+tallyRow('P95 Latency',    tally.latency);
+tallyRow('CPU Efficiency', tally.cpu);
+tallyRow('Mem Efficiency', tally.memory);
+tallyRow('Data Transfer',  tally.data);
+
+console.log('\n  [*] A difference is marked significant when the 95% CIs do not overlap.');
+console.log('      Non-significant differences should not be over-interpreted.\n');

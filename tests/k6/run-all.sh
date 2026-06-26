@@ -1,6 +1,7 @@
 #!/bin/bash
 # Run all k6 load test scenarios for REST and GraphQL
 # Usage: ./tests/k6/run-all.sh
+# DEPRECATED: Use run-all-repeated.sh for multiple runs and better resource monitoring.
 
 set -e
 
@@ -26,12 +27,12 @@ run_scenario() {
   local api=$2
   
   echo "=========================================="
-  echo "📊 Scenario: ${scenario} (${api})"
+  echo "Scenario: ${scenario} (${api})"
   echo "=========================================="
   echo ""
 
   if [[ "$scenario" == "06-booking-creation" ]]; then
-    echo "🧹 Pre-test Cleanup: Wiping test data..."
+    echo "Pre-test Cleanup: Wiping test data..."
     # Use TRUNCATE for Condition 1, or the DELETE query for Condition 2
     docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "DELETE FROM bookings WHERE booking_date >= CURRENT_DATE;"
     # docker exec -t aps-postgres psql -U apsadmin -d apartment_booking -c "TRUNCATE bookings RESTART IDENTITY;"
